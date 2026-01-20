@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GastronomIQ | MENU</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#f8fafc] p-5 font-['Plus_Jakarta_Sans']">
+
+    <div id="closed-screen" class="hidden flex flex-col items-center justify-center h-[80vh] text-center">
+        <div class="text-6xl mb-4 text-slate-300 italic font-black">CLOSE</div>
+        <p class="text-slate-500 font-bold">Столовая закрыта.<br>Ждем вас завтра!</p>
+    </div>
+
+    <div id="open-screen">
+        <h1 class="text-3xl font-black text-slate-800 mb-8 tracking-tighter">Меню 🍎</h1>
+        <div id="client-menu-list" class="space-y-4">
+            </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const FB_URL = "https://ashana-29903-default-rtdb.firebaseio.com";
+        firebase.initializeApp({ databaseURL: FB_URL });
+        const db = firebase.database();
+
+        // Следим за статусом столовой
+        db.ref('settings/isClosed').on('value', snap => {
+            const isClosed = snap.val();
+            document.getElementById('closed-screen').classList.toggle('hidden', !isClosed);
+            document.getElementById('open-screen').classList.toggle('hidden', isClosed);
+        });
+
+        // Загружаем меню
+        db.ref('menu_today').on('value', snap => {
+            const list = document.getElementById('client-menu-list');
+            list.innerHTML = "";
+            const items = snap.val();
+            
+            if(items) {
+                Object.keys(items).forEach(id => {
+                    const it = items[id];
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-6 rounded-[30px] shadow-sm border border-slate-100 flex justify-between items-center active:scale-95 transition-transform";
+                    card.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="font-extrabold text-slate-800 text-lg">${it.name}</div>
+                            <div class="text-indigo-600 font-black">${it.price} ₸</div>
+                        </div>
+                        <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                            <i class="fas fa-plus"></i>
+                        </div>`;
+                    card.onclick = () => makeOrder(it);
+                    list.appendChild(card);
+                });
+            } else {
+                list.innerHTML = "<p class='text-slate-400 italic text-center py-10'>Меню обновляется...</p>";
+            }
+        });
+
+        function makeOrder(item) {
+            const user = tg.initDataUnsafe.user || { first_name: "Гость" };
+            const order = {
+                item: item.name,
+                price: item.price,
+                user: user.first_name,
+                time: new Date().toLocaleTimeString()
+            };
+            
+            db.ref('orders').push(order).then(() => {
+                tg.showAlert(`✅ Заказ на ${item.name} принят!`);
+            });
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</body>
+</html>
