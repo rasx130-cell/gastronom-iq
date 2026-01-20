@@ -9,36 +9,68 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .cart-anim { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    </style>
 </head>
-<body class="bg-[#f8fafc] p-5 font-['Plus_Jakarta_Sans']">
+<body class="bg-[#f8fafc] p-5 pb-32">
 
     <div id="closed-screen" class="hidden flex flex-col items-center justify-center h-[80vh] text-center">
-        <div class="text-6xl mb-4 text-slate-300 italic font-black">CLOSE</div>
-        <p class="text-slate-500 font-bold">Столовая закрыта.<br>Ждем вас завтра!</p>
+        <div class="text-6xl mb-4 text-slate-200 italic font-black">CLOSE</div>
+        <p class="text-slate-500 font-bold text-lg">Столовая закрыта.<br>Ждем вас завтра!</p>
     </div>
 
     <div id="open-screen">
-        <h1 class="text-3xl font-black text-slate-800 mb-8 tracking-tighter">Меню 🍎</h1>
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tighter">Меню 🍎</h1>
+            <button onclick="clearCart()" id="clear-btn" class="hidden text-xs font-bold text-rose-500 bg-rose-50 px-3 py-1.5 rounded-full">Очистить</button>
+        </div>
+        
         <div id="client-menu-list" class="space-y-4">
             </div>
+    </div>
+
+    <div id="cart-bar" class="hidden fixed bottom-6 left-5 right-5 bg-indigo-600 rounded-[32px] p-4 shadow-2xl shadow-indigo-200 cart-anim z-50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4 ml-2">
+                <div class="relative">
+                    <i class="fas fa-shopping-basket text-white text-xl"></i>
+                    <span id="cart-count" class="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-indigo-600">0</span>
+                </div>
+                <div>
+                    <div class="text-[10px] text-indigo-200 font-bold uppercase tracking-widest">Итого</div>
+                    <div id="cart-total" class="text-white font-black text-lg leading-none">0 ₸</div>
+                </div>
+            </div>
+            <button onclick="sendOrder()" class="bg-white text-indigo-600 px-8 py-4 rounded-[24px] font-black text-sm active:scale-95 transition-transform shadow-lg">
+                ЗАКАЗАТЬ
+            </button>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Настройка Firebase
         const FB_URL = "https://ashana-29903-default-rtdb.firebaseio.com";
         firebase.initializeApp({ databaseURL: FB_URL });
         const db = firebase.database();
 
-        // Следим за статусом столовой
+        let cart = [];
+
+        // 1. Следим за статусом столовой
         db.ref('settings/isClosed').on('value', snap => {
             const isClosed = snap.val();
             document.getElementById('closed-screen').classList.toggle('hidden', !isClosed);
             document.getElementById('open-screen').classList.toggle('hidden', isClosed);
+            if(isClosed) hideCart();
         });
 
-        // Загружаем меню
+        // 2. Загружаем меню
         db.ref('menu_today').on('value', snap => {
             const list = document.getElementById('client-menu-list');
             list.innerHTML = "";
@@ -48,38 +80,87 @@
                 Object.keys(items).forEach(id => {
                     const it = items[id];
                     const card = document.createElement('div');
-                    card.className = "bg-white p-6 rounded-[30px] shadow-sm border border-slate-100 flex justify-between items-center active:scale-95 transition-transform";
+                    card.className = "bg-white p-5 rounded-[28px] shadow-sm border border-slate-100 flex justify-between items-center active:bg-slate-50 transition-colors";
                     card.innerHTML = `
                         <div class="space-y-1">
                             <div class="font-extrabold text-slate-800 text-lg">${it.name}</div>
                             <div class="text-indigo-600 font-black">${it.price} ₸</div>
                         </div>
-                        <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                        <button onclick="addToCart('${it.name}', ${it.price})" class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 active:scale-90 transition-transform">
                             <i class="fas fa-plus"></i>
-                        </div>`;
-                    card.onclick = () => makeOrder(it);
+                        </button>`;
                     list.appendChild(card);
                 });
             } else {
-                list.innerHTML = "<p class='text-slate-400 italic text-center py-10'>Меню обновляется...</p>";
+                list.innerHTML = "<div class='text-slate-400 italic text-center py-20 bg-white rounded-[30px] border border-dashed border-slate-200'>Меню скоро появится...</div>";
             }
         });
 
-        function makeOrder(item) {
+        // 3. Логика корзины
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            updateCartUI();
+            tg.HapticFeedback.impactOccurred('light');
+        }
+
+        function clearCart() {
+            cart = [];
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const cartBar = document.getElementById('cart-bar');
+            const cartCount = document.getElementById('cart-count');
+            const cartTotal = document.getElementById('cart-total');
+            const clearBtn = document.getElementById('clear-btn');
+
+            if (cart.length > 0) {
+                cartBar.classList.remove('hidden');
+                clearBtn.classList.remove('hidden');
+                cartCount.innerText = cart.length;
+                const total = cart.reduce((sum, item) => sum + item.price, 0);
+                cartTotal.innerText = `${total} ₸`;
+            } else {
+                cartBar.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+            }
+        }
+
+        // 4. Отправка заказа
+        function sendOrder() {
+            if (cart.length === 0) return;
+
             const user = tg.initDataUnsafe.user || { first_name: "Гость" };
+            
+            // Собираем все названия блюд в одну строку
+            const itemNames = cart.map(i => i.name).join(", ");
+            const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
+
             const order = {
-                item: item.name,
-                price: item.price,
+                item: itemNames,
+                price: totalPrice,
                 user: user.first_name,
-                time: new Date().toLocaleTimeString()
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                status: "pending"
             };
+
+            tg.MainButton.showProgress();
             
             db.ref('orders').push(order).then(() => {
-                tg.showAlert(`✅ Заказ на ${item.name} принят!`);
+                tg.HapticFeedback.notificationOccurred('success');
+                tg.showAlert(`✅ Заказ отправлен!\n\n${itemNames}\nИтого: ${totalPrice} ₸`);
+                clearCart();
+                tg.MainButton.hideProgress();
+            }).catch(err => {
+                tg.showAlert("Ошибка при заказе. Попробуйте снова.");
+                tg.MainButton.hideProgress();
             });
         }
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-</body>
 
+        function hideCart() {
+            document.getElementById('cart-bar').classList.add('hidden');
+        }
+    </script>
+</body>
 </html>
+
