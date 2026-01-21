@@ -11,16 +11,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #1E293B; }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #1E293B; -webkit-tap-highlight-color: transparent; }
         .dish-card { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .dish-card:active { transform: scale(0.95); }
-        .cart-badge { animation: pop 0.3s ease-out; }
-        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
-        /* Кастомный скролл */
+        .dish-card:active { transform: scale(0.96); }
+        /* Плавное появление панели */
+        #cart-panel { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         ::-webkit-scrollbar { width: 0px; }
     </style>
 </head>
-<body class="p-4 pb-32">
+<body class="p-4 pb-40">
 
     <header class="flex justify-between items-center mb-8">
         <div>
@@ -32,11 +31,11 @@
         </div>
     </header>
 
-    <div id="menu-container" class="grid grid-cols-1 gap-4">
-        <div class="text-center py-10 text-slate-300 font-bold">Загрузка вкусняшек...</div>
+    <div id="menu-container" class="grid grid-cols-1 gap-4 text-center py-10">
+        <div class="text-slate-300 font-bold">Загрузка меню...</div>
     </div>
 
-    <div id="cart-panel" class="fixed bottom-0 left-0 w-full p-6 bg-white rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] transform translate-y-full transition-transform duration-300 z-50">
+    <div id="cart-panel" class="fixed bottom-0 left-0 w-full p-6 bg-white rounded-t-[40px] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] transform translate-y-full z-[999]">
         <div class="flex justify-between items-end mb-6">
             <div>
                 <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Итого к оплате</p>
@@ -46,7 +45,7 @@
                 <p id="items-count" class="text-blue-500 font-black text-sm">0 товаров</p>
             </div>
         </div>
-        <button onclick="checkout()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-blue-100 active:scale-95 transition">
+        <button onclick="checkout()" id="order-btn" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-blue-100 active:bg-blue-700 transition-all duration-200">
             Оформить заказ
         </button>
     </div>
@@ -63,14 +62,14 @@
 
         let cart = {};
 
-        // 1. ЗАГРУЗКА ДАННЫХ
+        // 1. ЗАГРУЗКА МЕНЮ
         db.ref('menu_today').on('value', (snapshot) => {
             const container = document.getElementById('menu-container');
             const data = snapshot.val();
             container.innerHTML = "";
 
             if (!data) {
-                container.innerHTML = "<p class='text-center text-slate-400 font-bold'>Меню пока пусто :(</p>";
+                container.innerHTML = "<p class='text-slate-400 font-bold'>Меню пусто :(</p>";
                 return;
             }
 
@@ -79,13 +78,13 @@
                 const count = cart[id] ? cart[id].count : 0;
                 
                 container.innerHTML += `
-                    <div class="dish-card bg-white p-4 rounded-[28px] shadow-sm flex justify-between items-center border border-white">
-                        <div class="flex-1">
+                    <div class="dish-card bg-white p-4 rounded-[28px] shadow-sm flex justify-between items-center border border-slate-50">
+                        <div class="flex-1 text-left">
                             <h3 class="font-black text-slate-800 text-lg leading-tight">${item.name}</h3>
                             <p class="text-blue-500 font-black mt-1">${item.price} ₸</p>
                         </div>
                         <div class="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white text-slate-400 shadow-sm flex items-center justify-center active:bg-blue-500 active:text-white transition">
+                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white text-slate-400 shadow-sm flex items-center justify-center active:bg-red-500 active:text-white transition">
                                 <i class="fas fa-minus"></i>
                             </button>
                             <span id="count-${id}" class="font-black text-slate-800 min-w-[20px] text-center">${count}</span>
@@ -98,7 +97,7 @@
             });
         });
 
-        // 2. ЛОГИКА КОРЗИНЫ
+        // 2. ОБНОВЛЕНИЕ КОРЗИНЫ
         function updateCart(id, name, price, delta) {
             tg.HapticFeedback.impactOccurred('light');
 
@@ -110,15 +109,17 @@
 
             if (cart[id].count <= 0) {
                 delete cart[id];
-                document.getElementById(`count-${id}`).innerText = 0;
+                const countEl = document.getElementById(`count-${id}`);
+                if(countEl) countEl.innerText = 0;
             } else {
-                document.getElementById(`count-${id}`).innerText = cart[id].count;
+                const countEl = document.getElementById(`count-${id}`);
+                if(countEl) countEl.innerText = cart[id].count;
             }
 
             renderFooter();
         }
 
-        // 3. ОБНОВЛЕНИЕ ФУТЕРА
+        // 3. ВИЗУАЛИЗАЦИЯ ПАНЕЛИ ОПЛАТЫ
         function renderFooter() {
             const panel = document.getElementById('cart-panel');
             let totalSum = 0;
@@ -130,31 +131,41 @@
             });
 
             if (totalCount > 0) {
-                panel.classList.remove('translate-y-full');
+                panel.style.transform = "translateY(0)";
                 document.getElementById('total-price-display').innerText = totalSum + ' ₸';
                 document.getElementById('items-count').innerText = totalCount + ' товаров';
             } else {
-                panel.classList.add('translate-y-full');
+                panel.style.transform = "translateY(100%)";
             }
         }
 
-        // 4. ОТПРАВКА В БОТА
+        // 4. ГЛАВНАЯ ФУНКЦИЯ - ОТПРАВКА В БОТ
         function checkout() {
+            if (Object.keys(cart).length === 0) return;
+
             tg.HapticFeedback.notificationOccurred('success');
-            
-            let itemsString = Object.values(cart)
+
+            // Собираем данные
+            const itemsString = Object.values(cart)
                 .map(i => `${i.name} (x${i.count})`)
                 .join(', ');
             
-            let totalSum = Object.values(cart).reduce((s, i) => s + (i.price * i.count), 0);
+            const totalSum = Object.values(cart).reduce((s, i) => s + (i.price * i.count), 0);
 
             const result = {
                 item: itemsString,
                 price: totalSum
             };
 
+            // Попытка отправить данные в бот
             tg.sendData(JSON.stringify(result));
+            
+            // Закрываем окно приложения
+            setTimeout(() => {
+                tg.close();
+            }, 150);
         }
     </script>
 </body>
 </html>
+
