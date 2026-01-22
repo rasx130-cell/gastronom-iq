@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; -webkit-tap-highlight-color: transparent; }
-        .student-btn.active { background-color: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
-        #cart-panel { transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .student-btn.active { background-color: #3b82f6 !important; color: white !important; }
+        #cart-panel { transition: transform 0.4s ease-out; z-index: 100; }
         .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -20,18 +20,18 @@
 <body class="p-4 pb-40">
     <header class="mb-6">
         <h1 class="text-3xl font-black text-slate-900">Gastronom<span class="text-blue-600">IQ</span></h1>
-        <p id="user-role-label" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Загрузка системы...</p>
+        <p id="user-role-label" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Загрузка данных...</p>
     </header>
 
     <div id="starosta-panel" class="hidden mb-6">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-3">Кому заказываем?</h2>
+        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Кому заказываем?</h2>
         <div id="students-list" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
     </div>
 
     <div id="menu-container" class="grid grid-cols-1 gap-4">
-        <div class="flex flex-col items-center py-10">
-            <div class="loader w-8 h-8 border-4 border-slate-200 rounded-full mb-2"></div>
-            <p class="text-sm text-slate-400">Синхронизация...</p>
+        <div class="text-center py-10">
+            <div class="loader inline-block w-8 h-8 border-4 border-slate-200 rounded-full mb-2"></div>
+            <p class="text-slate-400 text-sm">Синхронизация меню...</p>
         </div>
     </div>
 
@@ -43,55 +43,45 @@
             </div>
             <button onclick="clearCart()" class="text-slate-300 text-xs font-bold px-3 py-1 border rounded-xl">СБРОС</button>
         </div>
-        <button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black shadow-xl">ОФОРМИТЬ ЗАКАЗ</button>
+        <button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black shadow-xl active:scale-95 transition-transform">ОФОРМИТЬ ЗАКАЗ</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        
-        // Показываем кнопку назад и расширяем окно
         tg.expand();
         tg.ready();
 
+        // ТВОЯ БАЗА
         firebase.initializeApp({ databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" });
         const db = firebase.database();
 
         let fullCart = [], currentUser = null, selectedId = null, selectedName = "Я сам", currentMenu = {};
 
+        // 1. ПОЛУЧАЕМ ID ИЗ ТЕЛЕГРАМА ИЛИ СТАВИМ ТЕСТОВЫЙ
+        const uid = tg.initDataUnsafe?.user?.id || 5695029471; 
+        selectedId = uid;
+
         async function init() {
-            // Исправлено: если tg.initDataUnsafe пустой (в браузере), берем тестовый ID или выводим инфо
-            const user = tg.initDataUnsafe?.user;
-            
-            if (!user) {
-                // Если ты тестируешь в браузере, можешь раскомментировать строку ниже:
-                // setupApp(5695029471); 
-                document.getElementById('menu-container').innerHTML = "<div class='p-4 bg-red-50 text-red-500 rounded-2xl text-center text-sm font-bold'>ОШИБКА:<br>Запустите через кнопку в боте</div>";
-                return;
-            }
-
-            setupApp(user.id);
-        }
-
-        async function setupApp(uid) {
-            selectedId = uid;
             try {
                 const snap = await db.ref(`users/${uid}`).once('value');
                 currentUser = snap.val();
-                
+
                 if (currentUser) {
                     document.getElementById('user-role-label').innerText = `${currentUser.role} | ${currentUser.class}`;
                     if (['starosta', 'teacher'].includes(currentUser.role)) {
                         document.getElementById('starosta-panel').classList.remove('hidden');
                         loadClassmates(currentUser.class);
                     }
+                } else {
+                    document.getElementById('user-role-label').innerText = "Пользователь не найден";
                 }
-                
-                db.ref('menu_today').on('value', s => { 
-                    currentMenu = s.val() || {}; 
-                    renderMenu(); 
+
+                db.ref('menu_today').on('value', s => {
+                    currentMenu = s.val() || {};
+                    renderMenu();
                 });
-            } catch (e) {
-                console.error(e);
+            } catch (err) {
+                console.error("Firebase Error:", err);
             }
         }
 
@@ -99,10 +89,10 @@
             db.ref('users').orderByChild('class').equalTo(cl).on('value', s => {
                 const list = document.getElementById('students-list');
                 const users = s.val() || {};
-                let html = `<button onclick="selectStudent('${selectedId}', 'Я сам')" id="btn-${selectedId}" class="student-btn active flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold">Я сам</button>`;
+                let html = `<button onclick="selectStudent('${uid}', 'Я сам')" id="btn-${uid}" class="student-btn active flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold">Я сам</button>`;
                 
                 Object.values(users).forEach(u => {
-                    if (u.uid && u.uid != selectedId && u.role === 'student') {
+                    if (u.uid && u.uid != uid && u.role === 'student') {
                         html += `<button onclick="selectStudent('${u.uid}', '${u.name}')" id="btn-${u.uid}" class="student-btn flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold">${u.name}</button>`;
                     }
                 });
@@ -112,16 +102,15 @@
 
         function selectStudent(id, name) {
             selectedId = id; selectedName = name;
-            tg.HapticFeedback.selectionChanged();
+            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
             document.querySelectorAll('.student-btn').forEach(b => b.classList.remove('active'));
-            const b = document.getElementById(`btn-${id}`);
-            if(b) b.classList.add('active');
+            document.getElementById(`btn-${id}`)?.classList.add('active');
             document.getElementById('order-target-name').innerText = name === 'Я сам' ? 'Личный заказ' : `Заказ для: ${name}`;
             renderMenu();
         }
 
         function updateCart(id, name, price, delta) {
-            tg.HapticFeedback.impactOccurred('light');
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             if (delta > 0) {
                 fullCart.push({ id, name, price: Number(price), student_id: selectedId, student_name: selectedName });
             } else {
@@ -141,15 +130,15 @@
                 const item = currentMenu[id];
                 const count = fullCart.filter(i => i.id === id && i.student_id === selectedId).length;
                 container.innerHTML += `
-                    <div class="dish-card bg-white p-4 rounded-[28px] flex justify-between items-center shadow-sm">
+                    <div class="dish-card bg-white p-4 rounded-[28px] flex justify-between items-center shadow-sm border border-slate-50">
                         <div class="flex-1">
                             <h3 class="font-bold text-slate-800 text-sm">${item.name}</h3>
                             <p class="text-blue-600 font-black text-xs">${item.price} ₸</p>
                         </div>
                         <div class="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border">
-                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400"><i class="fas fa-minus"></i></button>
+                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 active:bg-red-50"><i class="fas fa-minus"></i></button>
                             <span class="font-bold text-sm w-4 text-center">${count}</span>
-                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-blue-600"><i class="fas fa-plus"></i></button>
+                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-blue-600 active:bg-blue-50"><i class="fas fa-plus"></i></button>
                         </div>
                     </div>`;
             });
@@ -171,6 +160,7 @@
                 items: fullCart
             };
             tg.sendData(JSON.stringify(data));
+            tg.close();
         }
 
         init();
