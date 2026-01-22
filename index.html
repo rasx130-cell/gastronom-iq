@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #1E293B; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #1E293B; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
         .dish-card { transition: all 0.2s ease; border: 1px solid #f1f5f9; }
         .student-btn.active { 
             background-color: #3b82f6; 
@@ -19,7 +19,7 @@
             border-color: #2563eb;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
-        #cart-panel { transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #cart-panel { transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 50; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -28,18 +28,18 @@
     <header class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-black tracking-tighter text-slate-900">Gastronom<span class="text-blue-600">IQ</span></h1>
-            <p id="user-role-label" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Загрузка профиля...</p>
+            <p id="user-role-label" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Авторизация...</p>
         </div>
     </header>
 
     <div id="starosta-panel" class="hidden mb-6 animate__animated animate__fadeIn">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Чей это заказ?</h2>
+        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Кому заказываем?</h2>
         <div id="students-list" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
             </div>
     </div>
 
     <div id="menu-container" class="grid grid-cols-1 gap-4">
-        <div class="text-center py-20 opacity-50 font-bold">Загрузка меню...</div>
+        <div class="text-center py-20 opacity-50 font-bold">Синхронизация меню...</div>
     </div>
 
     <div id="cart-panel" class="fixed bottom-0 left-0 w-full p-6 bg-white rounded-t-[40px] shadow-[0_-10px_50px_rgba(0,0,0,0.1)] transform translate-y-full">
@@ -48,7 +48,7 @@
                 <p id="order-target-name" class="text-blue-600 text-[10px] font-black uppercase tracking-tighter">Личный заказ</p>
                 <h2 id="total-price-display" class="text-3xl font-black text-slate-800">0 ₸</h2>
             </div>
-            <button onclick="clearCart()" class="text-slate-300 text-xs font-bold px-3 py-1 border rounded-xl">ОЧИСТИТЬ</button>
+            <button onclick="clearCart()" class="text-slate-300 text-xs font-bold px-3 py-1 border rounded-xl active:bg-slate-50">ОЧИСТИТЬ</button>
         </div>
         <button onclick="checkout()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all">
             ОФОРМИТЬ ЗАКАЗ
@@ -57,34 +57,56 @@
 
     <script>
         const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Инициализация Firebase
         const firebaseConfig = { databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.database();
 
-        let fullCart = []; // Массив объектов {name, price, student_id, student_name}
+        let fullCart = [];
         let currentUser = null;
         let selectedStudentId = null;
         let selectedStudentName = "Я сам";
         let nicknames = {};
+        let currentMenuData = {};
 
         async function init() {
-            const uid = tg.initDataUnsafe.user.id;
+            // Безопасное получение ID пользователя
+            const user = tg.initDataUnsafe?.user;
+            if (!user) {
+                document.getElementById('menu-container').innerHTML = "Ошибка: Откройте через Telegram";
+                return;
+            }
+            
+            const uid = user.id;
             selectedStudentId = uid;
 
-            // Загружаем данные пользователя
-            const userSnap = await db.ref(`users/${uid}`).once('value');
-            currentUser = userSnap.val();
-            
-            if (currentUser) {
-                document.getElementById('user-role-label').innerText = `${currentUser.role} | ${currentUser.class}`;
+            try {
+                const userSnap = await db.ref(`users/${uid}`).once('value');
+                currentUser = userSnap.val();
                 
-                if (currentUser.role === 'starosta') {
-                    document.getElementById('starosta-panel').classList.remove('hidden');
-                    // Загружаем клички, которые поставил этот староста
-                    const nickSnap = await db.ref(`nicknames/${uid}`).once('value');
-                    nicknames = nickSnap.val() || {};
-                    loadClassmates(currentUser.class);
+                if (currentUser) {
+                    document.getElementById('user-role-label').innerText = `${currentUser.role} | ${currentUser.class}`;
+                    
+                    if (currentUser.role === 'starosta' || currentUser.role === 'teacher') {
+                        document.getElementById('starosta-panel').classList.remove('hidden');
+                        const nickSnap = await db.ref(`nicknames/${uid}`).once('value');
+                        nicknames = nickSnap.val() || {};
+                        loadClassmates(currentUser.class);
+                    }
                 }
+                
+                // Подписка на меню в реальном времени
+                db.ref('menu_today').on('value', (snapshot) => {
+                    currentMenuData = snapshot.val() || {};
+                    renderMenu();
+                });
+
+            } catch (e) {
+                console.error("Init error:", e);
             }
         }
 
@@ -98,8 +120,8 @@
                 `;
 
                 Object.values(users).forEach(u => {
-                    if (u.uid !== currentUser.uid && u.role === 'student') {
-                        const displayName = nicknames[u.uid] || u.name; // Используем кличку, если есть
+                    if (u.uid && u.uid !== currentUser.uid && u.role === 'student') {
+                        const displayName = nicknames[u.uid] || u.name;
                         list.innerHTML += `
                             <button onclick="selectStudent('${u.uid}', '${displayName}')" id="btn-${u.uid}" class="student-btn flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold transition">${displayName}</button>
                         `;
@@ -111,58 +133,69 @@
         function selectStudent(uid, name) {
             selectedStudentId = uid;
             selectedStudentName = name;
-            tg.HapticFeedback.selectionChanged();
+            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
             
             document.querySelectorAll('.student-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${uid}`).classList.add('active');
+            const activeBtn = document.getElementById(`btn-${uid}`);
+            if(activeBtn) activeBtn.classList.add('active');
+            
             document.getElementById('order-target-name').innerText = `Заказ для: ${name}`;
+            renderMenu(); // Перерисовываем счетчики для нового выбранного студента
         }
 
         function updateCart(id, name, price, delta) {
-            tg.HapticFeedback.impactOccurred('light');
+            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             
             if (delta > 0) {
-                // Добавляем позицию с привязкой к текущему выбранному студенту
                 fullCart.push({
                     id: id,
                     name: name,
-                    price: price,
+                    price: Number(price),
                     student_id: selectedStudentId,
                     student_name: selectedStudentName
                 });
             } else {
-                // Удаляем последнюю добавленную позицию именно этого товара для этого студента
-                const idx = fullCart.findLastIndex(i => i.id === id && i.student_id === selectedStudentId);
-                if (idx !== -1) fullCart.splice(idx, 1);
+                // Безопасный поиск последнего элемента (замена findLastIndex)
+                let lastIndex = -1;
+                for (let i = fullCart.length - 1; i >= 0; i--) {
+                    if (fullCart[i].id === id && fullCart[i].student_id === selectedStudentId) {
+                        lastIndex = i;
+                        break;
+                    }
+                }
+                if (lastIndex !== -1) fullCart.splice(lastIndex, 1);
             }
             renderMenu();
             renderFooter();
         }
 
         function renderMenu() {
-            db.ref('menu_today').once('value', (snapshot) => {
-                const container = document.getElementById('menu-container');
-                const data = snapshot.val();
-                container.innerHTML = "";
+            const container = document.getElementById('menu-container');
+            if (!currentMenuData) return;
+            container.innerHTML = "";
 
-                Object.keys(data).forEach(id => {
-                    const item = data[id];
-                    // Считаем сколько раз этот товар в корзине ДЛЯ ТЕКУЩЕГО студента
-                    const count = fullCart.filter(i => i.id === id && i.student_id === selectedStudentId).length;
-                    
-                    container.innerHTML += `
-                        <div class="dish-card bg-white p-4 rounded-[28px] flex justify-between items-center shadow-sm border border-slate-100">
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-sm">${item.name}</h3>
-                                <p class="text-blue-600 font-black text-xs">${item.price} ₸</p>
-                            </div>
-                            <div class="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border">
-                                <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm active:bg-red-50 text-slate-400"><i class="fas fa-minus text-[10px]"></i></button>
-                                <span class="font-bold text-xs w-4 text-center">${count}</span>
-                                <button onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)" class="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm active:bg-blue-50 text-blue-600"><i class="fas fa-plus text-[10px]"></i></button>
-                            </div>
-                        </div>`;
-                });
+            Object.keys(currentMenuData).forEach(id => {
+                const item = currentMenuData[id];
+                if (item.stock === 0) return; // Пропускаем, если нет в наличии
+
+                const count = fullCart.filter(i => i.id === id && i.student_id === selectedStudentId).length;
+                
+                container.innerHTML += `
+                    <div class="dish-card bg-white p-4 rounded-[28px] flex justify-between items-center shadow-sm border border-slate-100">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-slate-800 text-sm">${item.name}</h3>
+                            <p class="text-blue-600 font-black text-xs">${item.price} ₸</p>
+                        </div>
+                        <div class="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border">
+                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm active:bg-red-50 text-slate-400">
+                                <i class="fas fa-minus text-[10px]"></i>
+                            </button>
+                            <span class="font-bold text-sm w-4 text-center">${count}</span>
+                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm active:bg-blue-50 text-blue-600">
+                                <i class="fas fa-plus text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>`;
             });
         }
 
@@ -187,23 +220,18 @@
         function checkout() {
             if (fullCart.length === 0) return;
 
-            // Формируем детальный отчет для бота
             const result = {
                 price: fullCart.reduce((s, i) => s + i.price, 0),
-                items: fullCart.map(i => ({
-                    name: i.name,
-                    price: i.price,
-                    student_id: i.student_id
-                })),
-                is_group_order: currentUser.role === 'starosta'
+                items: fullCart,
+                user_uid: currentUser.uid,
+                is_group_order: (currentUser.role === 'starosta' || currentUser.role === 'teacher')
             };
 
             tg.sendData(JSON.stringify(result));
-            tg.close();
         }
 
-        // Запуск
-        init().then(() => renderMenu());
+        // Инициализация
+        init();
     </script>
 </body>
 </html>
