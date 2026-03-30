@@ -10,21 +10,44 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #f5f7fa;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            padding: 16px;
             padding-bottom: 100px;
         }
-        .card {
+        .user-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .dish-card {
             background: white;
             border-radius: 20px;
             padding: 16px;
             margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
         }
+        .dish-card:active { transform: scale(0.98); }
+        .price { color: #667eea; font-weight: bold; font-size: 18px; margin-top: 5px; }
+        .quantity-btn {
+            background: #f0f0f0;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quantity-btn:active { transform: scale(0.9); }
         .cart {
             position: fixed;
             bottom: 0;
@@ -38,68 +61,57 @@
             transition: transform 0.3s;
         }
         .cart.show { transform: translateY(0); }
-        button {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 16px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        .quantity-btn {
-            background: #f0f0f0;
-            color: #333;
-            padding: 8px 12px;
-            margin: 0 4px;
-        }
-        .total {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        .user-info {
+        .checkout-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px;
-            border-radius: 20px;
-            margin-bottom: 20px;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 12px;
+            cursor: pointer;
         }
+        .total { font-size: 24px; font-weight: bold; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div id="userInfo" class="user-info">
-        <div id="userName">Загрузка...</div>
-        <div id="userClass" style="font-size: 12px; opacity: 0.8;"></div>
+    <div id="userCard" class="user-card">
+        <div id="userName" style="font-size: 20px; font-weight: bold;">👤 Загрузка...</div>
+        <div id="userClass" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
     </div>
     
     <div id="menu"></div>
     
     <div id="cart" class="cart">
-        <div class="total">Итого: <span id="total">0</span> ₸</div>
-        <div id="cartItems"></div>
-        <button onclick="checkout()" style="width: 100%; margin-top: 10px;">Оформить заказ</button>
+        <div class="total">💰 Итого: <span id="total">0</span> ₸</div>
+        <div id="cartItems" style="max-height: 200px; overflow-y: auto;"></div>
+        <button class="checkout-btn" onclick="checkout()">✅ Оформить заказ</button>
     </div>
 
     <script>
+        // Telegram WebApp
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.enableClosingConfirmation();
         
-        // Получаем данные пользователя
+        // Получаем данные пользователя из Telegram
         let userId = null;
         let userName = "Гость";
         
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userId = tg.initDataUnsafe.user.id;
             userName = tg.initDataUnsafe.user.first_name || "Гость";
-            document.getElementById('userName').innerHTML = `👤 ${userName}`;
+            document.getElementById('userName').innerHTML = `👋 Привет, ${userName}!`;
         } else {
-            document.getElementById('userName').innerHTML = `👤 Гость`;
+            document.getElementById('userName').innerHTML = `👋 Добро пожаловать!`;
         }
         
         // Firebase
-        const db = firebase.initializeApp({ databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" }).database();
+        const firebaseConfig = { databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
         
         let cart = {};
         
@@ -109,6 +121,8 @@
                 const data = snap.val();
                 if (data && data.user_class) {
                     document.getElementById('userClass').innerHTML = `📚 ${data.user_class} класс`;
+                } else {
+                    document.getElementById('userClass').innerHTML = `🎒 Выберите класс в боте`;
                 }
             });
         }
@@ -119,28 +133,28 @@
             const container = document.getElementById('menu');
             container.innerHTML = '';
             
-            if (!menu) {
-                container.innerHTML = '<div style="text-align:center; padding:40px;">Меню пусто</div>';
+            if (!menu || Object.keys(menu).length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🍽️ Меню пока пусто</div>';
                 return;
             }
             
-            Object.keys(menu).forEach(id => {
-                const item = menu[id];
+            Object.entries(menu).forEach(([id, item]) => {
                 const count = cart[id] ? cart[id].count : 0;
                 
-                container.innerHTML += `
-                    <div class="card">
-                        <div>
-                            <strong style="font-size: 18px;">${item.name}</strong>
-                            <div style="color: #3b82f6; font-weight: bold; margin-top: 5px;">${item.price} ₸</div>
-                        </div>
-                        <div>
-                            <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)">-</button>
-                            <span style="margin: 0 10px; font-weight: bold; min-width: 30px; display: inline-block; text-align: center;" id="count-${id}">${count}</span>
-                            <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)">+</button>
-                        </div>
+                const card = document.createElement('div');
+                card.className = 'dish-card';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-size: 18px; font-weight: 600;">${item.name}</div>
+                        <div class="price">${item.price} ₸</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)">−</button>
+                        <span id="count-${id}" style="min-width: 30px; text-align: center; font-weight: bold; font-size: 16px;">${count}</span>
+                        <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)">+</button>
                     </div>
                 `;
+                container.appendChild(card);
             });
         });
         
@@ -150,9 +164,11 @@
             
             if (cart[id].count <= 0) {
                 delete cart[id];
-                document.getElementById(`count-${id}`).innerText = '0';
+                const span = document.getElementById(`count-${id}`);
+                if (span) span.innerText = '0';
             } else {
-                document.getElementById(`count-${id}`).innerText = cart[id].count;
+                const span = document.getElementById(`count-${id}`);
+                if (span) span.innerText = cart[id].count;
             }
             
             updateCartUI();
@@ -161,55 +177,68 @@
         function updateCartUI() {
             const cartDiv = document.getElementById('cart');
             let total = 0;
-            let count = 0;
+            let totalCount = 0;
             
-            Object.values(cart).forEach(item => {
-                total += item.price * item.count;
-                count += item.count;
+            const itemsHtml = [];
+            Object.entries(cart).forEach(([id, item]) => {
+                const itemTotal = item.price * item.count;
+                total += itemTotal;
+                totalCount += item.count;
+                itemsHtml.push(`
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <div>
+                            <span style="font-weight: 500;">${item.name}</span>
+                            <span style="color: #666; font-size: 12px;"> x${item.count}</span>
+                        </div>
+                        <span style="font-weight: bold; color: #667eea;">${itemTotal} ₸</span>
+                    </div>
+                `);
             });
             
-            if (count > 0) {
+            if (totalCount > 0) {
                 cartDiv.classList.add('show');
                 document.getElementById('total').innerText = total;
-                
-                let itemsHtml = '';
-                Object.entries(cart).forEach(([id, item]) => {
-                    itemsHtml += `<div style="display: flex; justify-content: space-between; margin: 5px 0;">
-                        <span>${item.name} x${item.count}</span>
-                        <span>${item.price * item.count} ₸</span>
-                    </div>`;
-                });
-                document.getElementById('cartItems').innerHTML = itemsHtml;
+                document.getElementById('cartItems').innerHTML = itemsHtml.join('');
             } else {
                 cartDiv.classList.remove('show');
             }
         }
         
         function checkout() {
-            if (Object.keys(cart).length === 0) {
-                tg.showPopup({ title: 'Корзина пуста', message: 'Добавьте блюда' });
+            const items = Object.values(cart);
+            if (items.length === 0) {
+                tg.showPopup({
+                    title: 'Корзина пуста',
+                    message: 'Добавьте блюда для оформления заказа',
+                    buttons: [{type: 'ok'}]
+                });
                 return;
             }
             
-            let items = Object.values(cart).map(i => `${i.name} (x${i.count})`).join(', ');
-            let total = Object.values(cart).reduce((s, i) => s + (i.price * i.count), 0);
+            const itemsString = items.map(i => `${i.name} (x${i.count})`).join(', ');
+            const total = items.reduce((s, i) => s + (i.price * i.count), 0);
             
+            // Отправляем заказ в бота
             tg.sendData(JSON.stringify({
-                item: items,
+                item: itemsString,
                 price: total,
                 user_id: userId,
                 user_name: userName
             }));
             
-            tg.showPopup({ 
-                title: 'Заказ отправлен!', 
-                message: `${userName}, ваш заказ на ${total} ₸ принят!` 
+            tg.showPopup({
+                title: '✅ Заказ отправлен!',
+                message: `${userName}, ваш заказ на ${total} ₸ принят!\nЖдем вас в столовой!`,
+                buttons: [{type: 'ok'}]
             });
             
+            // Очищаем корзину
             cart = {};
             updateCartUI();
             document.querySelectorAll('[id^="count-"]').forEach(span => span.innerText = '0');
         }
+        
+        console.log('WebApp загружен, пользователь:', {userId, userName});
     </script>
 </body>
 </html>
