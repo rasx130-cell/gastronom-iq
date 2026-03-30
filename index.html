@@ -40,16 +40,6 @@
             }
         }
         
-        .cart-badge {
-            animation: pop 0.3s ease-out;
-        }
-        
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-        
         .quantity-btn {
             transition: all 0.15s ease;
         }
@@ -69,29 +59,6 @@
             100% { background-position: -200% 0; }
         }
         
-        .order-btn {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .order-btn::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.3s, height 0.3s;
-        }
-        
-        .order-btn:active::after {
-            width: 200px;
-            height: 200px;
-        }
-        
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -105,12 +72,16 @@
             background: #94A3B8;
             border-radius: 10px;
         }
+        
+        .user-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
     </style>
 </head>
 <body class="pb-32">
     
-    <!-- Хедер с приветствием -->
-    <div class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-4 border-b border-slate-100">
+    <!-- Хедер с информацией о пользователе -->
+    <div class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3 border-b border-slate-100">
         <div class="flex justify-between items-center max-w-2xl mx-auto">
             <div>
                 <h1 class="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
@@ -120,9 +91,20 @@
                     Школьная столовая
                 </p>
             </div>
+            <div id="userAvatar" class="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                <i class="fas fa-user text-lg"></i>
+            </div>
+        </div>
+        
+        <!-- Информация о пользователе -->
+        <div id="userInfo" class="mt-2 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl hidden">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                    <i class="fas fa-utensils text-lg"></i>
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-graduation-cap text-blue-500"></i>
+                </div>
+                <div>
+                    <p id="userName" class="font-bold text-slate-700 text-sm"></p>
+                    <p id="userClass" class="text-xs text-slate-500">Класс не выбран</p>
                 </div>
             </div>
         </div>
@@ -176,7 +158,7 @@
                 <button onclick="clearCart()" class="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold active:bg-slate-200 transition">
                     <i class="fas fa-trash-alt mr-2"></i> Очистить
                 </button>
-                <button onclick="checkout()" class="order-btn flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 active:scale-95 transition-all">
+                <button onclick="checkout()" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 active:scale-95 transition-all">
                     <i class="fas fa-check-circle mr-2"></i> Оформить
                 </button>
             </div>
@@ -184,24 +166,89 @@
     </div>
 
     <script>
+        // Инициализация Telegram WebApp
         const tg = window.Telegram.WebApp;
+        
+        // Важно! Раскрываем WebApp на весь экран
         tg.expand();
+        
+        // Включаем подтверждение закрытия
         tg.enableClosingConfirmation();
+        
+        // Показываем кнопку "Назад"
         tg.BackButton.show();
         
-        // Настройка цвета шапки Telegram
+        // Настройка цветов
         tg.setHeaderColor('#ffffff');
         tg.setBackgroundColor('#F8FAFC');
         
-        // Конфиг Firebase
+        // ========== ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ==========
+        let userData = {
+            id: null,
+            firstName: 'Гость',
+            lastName: '',
+            username: null
+        };
+        
+        // Получаем данные из Telegram
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            userData.id = tg.initDataUnsafe.user.id;
+            userData.firstName = tg.initDataUnsafe.user.first_name || 'Гость';
+            userData.lastName = tg.initDataUnsafe.user.last_name || '';
+            userData.username = tg.initDataUnsafe.user.username || null;
+            
+            // Показываем информацию о пользователе
+            const userInfoDiv = document.getElementById('userInfo');
+            const userNameSpan = document.getElementById('userName');
+            const userAvatar = document.getElementById('userAvatar');
+            
+            userInfoDiv.classList.remove('hidden');
+            userNameSpan.innerHTML = `${userData.firstName} ${userData.lastName}`.trim();
+            
+            // Меняем аватар на первую букву имени
+            if (userData.firstName) {
+                userAvatar.innerHTML = `<span class="text-sm font-bold">${userData.firstName[0].toUpperCase()}</span>`;
+            }
+            
+            console.log('✅ Пользователь загружен:', userData);
+        } else {
+            console.warn('⚠️ Данные пользователя не найдены. Возможно, WebApp открыт вне Telegram');
+            
+            // Показываем предупреждение
+            tg.showPopup({
+                title: 'Внимание',
+                message: 'Для работы приложения необходимо открыть его через Telegram бота',
+                buttons: [{type: 'ok'}]
+            });
+        }
+        
+        // ========== КОНФИГ FIREBASE ==========
         const firebaseConfig = { databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
+        
+        // Проверяем, инициализирован ли Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.database();
-
+        
         let cart = {};
         let currentOrdersCount = 0;
-
-        // Получение статуса столовой
+        let userClass = null;
+        
+        // ========== ПОЛУЧЕНИЕ КЛАССА ПОЛЬЗОВАТЕЛЯ ИЗ БД ==========
+        if (userData.id) {
+            db.ref(`users/${userData.id}`).once('value', (snapshot) => {
+                const userDbData = snapshot.val();
+                if (userDbData && userDbData.user_class) {
+                    userClass = userDbData.user_class;
+                    document.getElementById('userClass').innerHTML = `${userClass} класс`;
+                } else {
+                    document.getElementById('userClass').innerHTML = 'Класс не выбран';
+                }
+            });
+        }
+        
+        // ========== ПРОВЕРКА СТАТУСА СТОЛОВОЙ ==========
         db.ref('settings/isClosed').on('value', (snapshot) => {
             const isClosed = snapshot.val();
             if (isClosed) {
@@ -212,11 +259,10 @@
                 });
             }
         });
-
-        // Получение количества заказов пользователя
+        
+        // ========== ПОЛУЧЕНИЕ КОЛИЧЕСТВА ЗАКАЗОВ ПОЛЬЗОВАТЕЛЯ ==========
         function getUserOrdersCount() {
-            const userId = tg.initDataUnsafe?.user?.id;
-            if (!userId) return 0;
+            if (!userData.id) return 0;
             
             const today = new Date().toISOString().slice(0,10);
             db.ref('orders').once('value', (snapshot) => {
@@ -224,7 +270,7 @@
                 if (orders) {
                     let count = 0;
                     Object.values(orders).forEach(order => {
-                        if (order.user_id === userId && order.date === today) {
+                        if (order.user_id === userData.id && order.date === today) {
                             count++;
                         }
                     });
@@ -242,8 +288,8 @@
         }
         
         getUserOrdersCount();
-
-        // Загрузка меню
+        
+        // ========== ЗАГРУЗКА МЕНЮ ==========
         db.ref('menu_today').on('value', (snapshot) => {
             const container = document.getElementById('menu-container');
             const emptyState = document.getElementById('empty-state');
@@ -271,7 +317,6 @@
                             <h3 class="font-black text-slate-800 text-lg">${escapeHtml(item.name)}</h3>
                             <div class="flex items-center gap-2 mt-2">
                                 <span class="text-2xl font-black text-blue-600">${item.price} ₸</span>
-                                <span class="text-xs text-slate-400"><i class="fas fa-star text-yellow-400"></i> Хит</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
@@ -290,8 +335,8 @@
                 container.appendChild(card);
             });
         });
-
-        // Обновление корзины
+        
+        // ========== ОБНОВЛЕНИЕ КОРЗИНЫ ==========
         function updateCart(id, name, price, delta) {
             if (currentOrdersCount >= 3) {
                 tg.showPopup({
@@ -303,13 +348,13 @@
             }
             
             tg.HapticFeedback.impactOccurred('light');
-
+            
             if (!cart[id]) {
                 cart[id] = { name: name, price: price, count: 0 };
             }
-
+            
             cart[id].count += delta;
-
+            
             if (cart[id].count <= 0) {
                 delete cart[id];
                 const countSpan = document.getElementById(`count-${id}`);
@@ -322,21 +367,21 @@
                     setTimeout(() => countSpan.classList.remove('cart-badge'), 300);
                 }
             }
-
+            
             renderFooter();
         }
-
-        // Отображение корзины
+        
+        // ========== ОТОБРАЖЕНИЕ КОРЗИНЫ ==========
         function renderFooter() {
             const panel = document.getElementById('cart-panel');
             const itemsList = document.getElementById('cart-items-list');
             let totalSum = 0;
             let totalCount = 0;
-
+            
             if (itemsList) {
                 itemsList.innerHTML = '';
             }
-
+            
             Object.entries(cart).forEach(([id, item]) => {
                 totalSum += item.price * item.count;
                 totalCount += item.count;
@@ -353,7 +398,7 @@
                     `;
                 }
             });
-
+            
             if (totalCount > 0) {
                 panel.classList.remove('translate-y-full');
                 if (itemsList) itemsList.classList.remove('hidden');
@@ -364,8 +409,8 @@
                 if (itemsList) itemsList.classList.add('hidden');
             }
         }
-
-        // Очистка корзины
+        
+        // ========== ОЧИСТКА КОРЗИНЫ ==========
         function clearCart() {
             tg.HapticFeedback.impactOccurred('heavy');
             
@@ -379,12 +424,11 @@
             }, (buttonId) => {
                 if (buttonId === 'confirm') {
                     cart = {};
-                    // Обновляем все счетчики
-                    Object.keys(cart).forEach(id => {
-                        const countSpan = document.getElementById(`count-${id}`);
-                        if (countSpan) countSpan.innerText = 0;
-                    });
                     renderFooter();
+                    // Обновляем все счетчики
+                    document.querySelectorAll('[id^="count-"]').forEach(span => {
+                        span.innerText = '0';
+                    });
                     tg.showPopup({
                         title: 'Готово',
                         message: 'Корзина очищена',
@@ -393,8 +437,8 @@
                 }
             });
         }
-
-        // Оформление заказа
+        
+        // ========== ОФОРМЛЕНИЕ ЗАКАЗА ==========
         function checkout() {
             if (currentOrdersCount >= 3) {
                 tg.showPopup({
@@ -414,7 +458,7 @@
                 });
                 return;
             }
-
+            
             tg.HapticFeedback.notificationOccurred('success');
             
             let itemsString = Object.values(cart)
@@ -422,18 +466,21 @@
                 .join(', ');
             
             let totalSum = Object.values(cart).reduce((s, i) => s + (i.price * i.count), 0);
-
+            
+            // Добавляем информацию о пользователе в заказ
             const result = {
                 item: itemsString,
-                price: totalSum
+                price: totalSum,
+                user_id: userData.id,
+                user_name: `${userData.firstName} ${userData.lastName}`.trim(),
+                user_class: userClass
             };
-
+            
             tg.sendData(JSON.stringify(result));
             
-            // Показываем уведомление об успешной отправке
             tg.showPopup({
-                title: 'Заказ отправлен!',
-                message: `Ваш заказ на сумму ${totalSum} ₸ принят. Ждем вас в столовой!`,
+                title: 'Заказ отправлен! 🎉',
+                message: `${userData.firstName}, ваш заказ на сумму ${totalSum} ₸ принят.\nЖдем вас в столовой!`,
                 buttons: [{type: 'ok'}]
             });
             
@@ -441,12 +488,12 @@
             setTimeout(() => {
                 cart = {};
                 renderFooter();
-                // Обновляем все счетчики
-                const allCountSpans = document.querySelectorAll('[id^="count-"]');
-                allCountSpans.forEach(span => span.innerText = '0');
+                document.querySelectorAll('[id^="count-"]').forEach(span => {
+                    span.innerText = '0';
+                });
             }, 500);
         }
-
+        
         // Вспомогательная функция для экранирования HTML
         function escapeHtml(text) {
             if (!text) return '';
@@ -454,24 +501,25 @@
             div.textContent = text;
             return div.innerHTML;
         }
-
-        // Обработка кнопки "Назад" в Telegram
+        
+        // Обработка кнопки "Назад"
         tg.onEvent('backButtonClicked', () => {
             tg.close();
         });
-
+        
         // Приветственное сообщение
         setTimeout(() => {
-            const user = tg.initDataUnsafe?.user;
-            if (user && !localStorage.getItem('welcomed')) {
+            if (userData.firstName && !localStorage.getItem('welcomed')) {
                 tg.showPopup({
-                    title: `Привет, ${user.first_name}!`,
-                    message: 'Выбери свои любимые блюда и оформи заказ. Ждем тебя в столовой! 🍽️',
+                    title: `Привет, ${userData.firstName}! 👋`,
+                    message: 'Выбери свои любимые блюда и оформи заказ.\nЖдем тебя в столовой! 🍽️',
                     buttons: [{type: 'ok'}]
                 });
                 localStorage.setItem('welcomed', 'true');
             }
         }, 500);
+        
+        console.log('✅ WebApp загружен, пользователь:', userData);
     </script>
 </body>
 </html>
