@@ -3,169 +3,475 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>GastronomIQ</title>
+    <title>GastronomIQ - Школьная столовая</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; -webkit-tap-highlight-color: transparent; }
-        .student-btn.active { background-color: #3b82f6 !important; color: white !important; }
-        #cart-panel { transition: transform 0.4s ease-out; z-index: 100; }
-        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+        }
+        
+        .dish-card {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: fadeInUp 0.3s ease-out;
+        }
+        
+        .dish-card:active {
+            transform: scale(0.98);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .cart-badge {
+            animation: pop 0.3s ease-out;
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .quantity-btn {
+            transition: all 0.15s ease;
+        }
+        
+        .quantity-btn:active {
+            transform: scale(0.9);
+        }
+        
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .order-btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .order-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+        
+        .order-btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #E2E8F0;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #94A3B8;
+            border-radius: 10px;
+        }
     </style>
 </head>
-<body class="p-4 pb-40">
-    <header class="mb-6">
-        <h1 class="text-3xl font-black text-slate-900">Gastronom<span class="text-blue-600">IQ</span></h1>
-        <p id="user-role-label" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Загрузка данных...</p>
-    </header>
-
-    <div id="starosta-panel" class="hidden mb-6">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Кому заказываем?</h2>
-        <div id="students-list" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar"></div>
-    </div>
-
-    <div id="menu-container" class="grid grid-cols-1 gap-4">
-        <div class="text-center py-10">
-            <div class="loader inline-block w-8 h-8 border-4 border-slate-200 rounded-full mb-2"></div>
-            <p class="text-slate-400 text-sm">Синхронизация меню...</p>
-        </div>
-    </div>
-
-    <div id="cart-panel" class="fixed bottom-0 left-0 w-full p-6 bg-white rounded-t-[40px] shadow-[0_-10px_50px_rgba(0,0,0,0.1)] transform translate-y-full">
-        <div class="flex justify-between items-center mb-6">
+<body class="pb-32">
+    
+    <!-- Хедер с приветствием -->
+    <div class="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-4 py-4 border-b border-slate-100">
+        <div class="flex justify-between items-center max-w-2xl mx-auto">
             <div>
-                <p id="order-target-name" class="text-blue-600 text-[10px] font-black uppercase">Личный заказ</p>
-                <h2 id="total-price-display" class="text-3xl font-black text-slate-800">0 ₸</h2>
+                <h1 class="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    GastronomIQ
+                </h1>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                    Школьная столовая
+                </p>
             </div>
-            <button onclick="clearCart()" class="text-slate-300 text-xs font-bold px-3 py-1 border rounded-xl">СБРОС</button>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                    <i class="fas fa-utensils text-lg"></i>
+                </div>
+            </div>
         </div>
-        <button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-black shadow-xl active:scale-95 transition-transform">ОФОРМИТЬ ЗАКАЗ</button>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="max-w-2xl mx-auto px-4 pt-6">
+        <div class="mb-6">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                <i class="fas fa-fire mr-2 text-orange-500"></i> Сегодня в меню
+            </h2>
+            <div id="menu-container" class="space-y-3">
+                <div class="skeleton h-24 rounded-2xl"></div>
+                <div class="skeleton h-24 rounded-2xl"></div>
+                <div class="skeleton h-24 rounded-2xl"></div>
+            </div>
+        </div>
+
+        <!-- Пустое состояние -->
+        <div id="empty-state" class="hidden text-center py-16">
+            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-utensils text-4xl text-slate-300"></i>
+            </div>
+            <h3 class="text-slate-500 font-bold text-lg">Меню пусто</h3>
+            <p class="text-slate-400 text-sm mt-2">Пожалуйста, зайдите позже</p>
+        </div>
+    </div>
+
+    <!-- Корзина -->
+    <div id="cart-panel" class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] shadow-2xl transform translate-y-full transition-all duration-300 z-50 border-t border-slate-100">
+        <div class="p-6 max-w-2xl mx-auto">
+            <div class="flex justify-between items-end mb-5">
+                <div>
+                    <p class="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+                        <i class="fas fa-shopping-bag mr-1"></i> Итого к оплате
+                    </p>
+                    <h2 id="total-price-display" class="text-3xl font-black text-slate-800">0 ₸</h2>
+                </div>
+                <div class="bg-blue-50 px-4 py-2 rounded-2xl">
+                    <p id="items-count" class="text-blue-600 font-black text-sm">
+                        <i class="fas fa-box mr-1"></i> 0 товаров
+                    </p>
+                </div>
+            </div>
+            
+            <div id="cart-items-list" class="max-h-48 overflow-y-auto mb-4 space-y-2 hidden">
+                <!-- Товары в корзине будут отображаться здесь -->
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="clearCart()" class="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold active:bg-slate-200 transition">
+                    <i class="fas fa-trash-alt mr-2"></i> Очистить
+                </button>
+                <button onclick="checkout()" class="order-btn flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 active:scale-95 transition-all">
+                    <i class="fas fa-check-circle mr-2"></i> Оформить
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.ready();
-
-        // ТВОЯ БАЗА
-        firebase.initializeApp({ databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" });
+        tg.enableClosingConfirmation();
+        tg.BackButton.show();
+        
+        // Настройка цвета шапки Telegram
+        tg.setHeaderColor('#ffffff');
+        tg.setBackgroundColor('#F8FAFC');
+        
+        // Конфиг Firebase
+        const firebaseConfig = { databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let fullCart = [], currentUser = null, selectedId = null, selectedName = "Я сам", currentMenu = {};
+        let cart = {};
+        let currentOrdersCount = 0;
 
-        // 1. ПОЛУЧАЕМ ID ИЗ ТЕЛЕГРАМА ИЛИ СТАВИМ ТЕСТОВЫЙ
-        const uid = tg.initDataUnsafe?.user?.id || 5695029471; 
-        selectedId = uid;
-
-        async function init() {
-            try {
-                const snap = await db.ref(`users/${uid}`).once('value');
-                currentUser = snap.val();
-
-                if (currentUser) {
-                    document.getElementById('user-role-label').innerText = `${currentUser.role} | ${currentUser.class}`;
-                    if (['starosta', 'teacher'].includes(currentUser.role)) {
-                        document.getElementById('starosta-panel').classList.remove('hidden');
-                        loadClassmates(currentUser.class);
-                    }
-                } else {
-                    document.getElementById('user-role-label').innerText = "Пользователь не найден";
-                }
-
-                db.ref('menu_today').on('value', s => {
-                    currentMenu = s.val() || {};
-                    renderMenu();
+        // Получение статуса столовой
+        db.ref('settings/isClosed').on('value', (snapshot) => {
+            const isClosed = snapshot.val();
+            if (isClosed) {
+                tg.showPopup({
+                    title: 'Столовая закрыта',
+                    message: 'Заказы принимаются с 8:00 до 10:00. Приходите завтра!',
+                    buttons: [{type: 'ok'}]
                 });
-            } catch (err) {
-                console.error("Firebase Error:", err);
             }
-        }
+        });
 
-        function loadClassmates(cl) {
-            db.ref('users').orderByChild('class').equalTo(cl).on('value', s => {
-                const list = document.getElementById('students-list');
-                const users = s.val() || {};
-                let html = `<button onclick="selectStudent('${uid}', 'Я сам')" id="btn-${uid}" class="student-btn active flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold">Я сам</button>`;
-                
-                Object.values(users).forEach(u => {
-                    if (u.uid && u.uid != uid && u.role === 'student') {
-                        html += `<button onclick="selectStudent('${u.uid}', '${u.name}')" id="btn-${u.uid}" class="student-btn flex-shrink-0 px-5 py-3 bg-white border rounded-2xl text-sm font-bold">${u.name}</button>`;
+        // Получение количества заказов пользователя
+        function getUserOrdersCount() {
+            const userId = tg.initDataUnsafe?.user?.id;
+            if (!userId) return 0;
+            
+            const today = new Date().toISOString().slice(0,10);
+            db.ref('orders').once('value', (snapshot) => {
+                const orders = snapshot.val();
+                if (orders) {
+                    let count = 0;
+                    Object.values(orders).forEach(order => {
+                        if (order.user_id === userId && order.date === today) {
+                            count++;
+                        }
+                    });
+                    currentOrdersCount = count;
+                    
+                    if (count >= 3) {
+                        tg.showPopup({
+                            title: 'Лимит заказов',
+                            message: 'Вы уже сделали 3 заказа сегодня. Завтра снова ждем вас!',
+                            buttons: [{type: 'ok'}]
+                        });
                     }
-                });
-                list.innerHTML = html;
+                }
             });
         }
+        
+        getUserOrdersCount();
 
-        function selectStudent(id, name) {
-            selectedId = id; selectedName = name;
-            if(tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-            document.querySelectorAll('.student-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${id}`)?.classList.add('active');
-            document.getElementById('order-target-name').innerText = name === 'Я сам' ? 'Личный заказ' : `Заказ для: ${name}`;
-            renderMenu();
-        }
-
-        function updateCart(id, name, price, delta) {
-            if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-            if (delta > 0) {
-                fullCart.push({ id, name, price: Number(price), student_id: selectedId, student_name: selectedName });
-            } else {
-                let idx = -1;
-                for (let i = fullCart.length - 1; i >= 0; i--) {
-                    if (fullCart[i].id === id && fullCart[i].student_id === selectedId) { idx = i; break; }
-                }
-                if (idx !== -1) fullCart.splice(idx, 1);
-            }
-            renderMenu(); renderFooter();
-        }
-
-        function renderMenu() {
+        // Загрузка меню
+        db.ref('menu_today').on('value', (snapshot) => {
             const container = document.getElementById('menu-container');
-            container.innerHTML = "";
-            Object.keys(currentMenu).forEach(id => {
-                const item = currentMenu[id];
-                const count = fullCart.filter(i => i.id === id && i.student_id === selectedId).length;
-                container.innerHTML += `
-                    <div class="dish-card bg-white p-4 rounded-[28px] flex justify-between items-center shadow-sm border border-slate-50">
+            const emptyState = document.getElementById('empty-state');
+            const data = snapshot.val();
+            
+            if (!data || Object.keys(data).length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            container.innerHTML = '';
+            
+            Object.keys(data).forEach((id, index) => {
+                const item = data[id];
+                const count = cart[id] ? cart[id].count : 0;
+                
+                const card = document.createElement('div');
+                card.className = 'dish-card bg-white p-4 rounded-2xl shadow-sm border border-slate-100';
+                card.style.animationDelay = `${index * 0.05}s`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
                         <div class="flex-1">
-                            <h3 class="font-bold text-slate-800 text-sm">${item.name}</h3>
-                            <p class="text-blue-600 font-black text-xs">${item.price} ₸</p>
+                            <h3 class="font-black text-slate-800 text-lg">${escapeHtml(item.name)}</h3>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-2xl font-black text-blue-600">${item.price} ₸</span>
+                                <span class="text-xs text-slate-400"><i class="fas fa-star text-yellow-400"></i> Хит</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border">
-                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 active:bg-red-50"><i class="fas fa-minus"></i></button>
-                            <span class="font-bold text-sm w-4 text-center">${count}</span>
-                            <button onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)" class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-blue-600 active:bg-blue-50"><i class="fas fa-plus"></i></button>
+                        <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                            <button onclick="updateCart('${id}', '${escapeHtml(item.name)}', ${item.price}, -1)" 
+                                    class="quantity-btn w-9 h-9 rounded-xl bg-white text-slate-500 shadow-sm flex items-center justify-center hover:bg-red-50 active:bg-red-100 transition">
+                                <i class="fas fa-minus text-sm"></i>
+                            </button>
+                            <span id="count-${id}" class="font-black text-slate-800 min-w-[28px] text-center text-lg">${count}</span>
+                            <button onclick="updateCart('${id}', '${escapeHtml(item.name)}', ${item.price}, 1)" 
+                                    class="quantity-btn w-9 h-9 rounded-xl bg-white text-slate-500 shadow-sm flex items-center justify-center hover:bg-green-50 active:bg-green-100 transition">
+                                <i class="fas fa-plus text-sm"></i>
+                            </button>
                         </div>
-                    </div>`;
+                    </div>
+                `;
+                container.appendChild(card);
             });
+        });
+
+        // Обновление корзины
+        function updateCart(id, name, price, delta) {
+            if (currentOrdersCount >= 3) {
+                tg.showPopup({
+                    title: 'Лимит заказов',
+                    message: 'Вы уже сделали 3 заказа сегодня. Завтра снова ждем вас!',
+                    buttons: [{type: 'ok'}]
+                });
+                return;
+            }
+            
+            tg.HapticFeedback.impactOccurred('light');
+
+            if (!cart[id]) {
+                cart[id] = { name: name, price: price, count: 0 };
+            }
+
+            cart[id].count += delta;
+
+            if (cart[id].count <= 0) {
+                delete cart[id];
+                const countSpan = document.getElementById(`count-${id}`);
+                if (countSpan) countSpan.innerText = 0;
+            } else {
+                const countSpan = document.getElementById(`count-${id}`);
+                if (countSpan) {
+                    countSpan.innerText = cart[id].count;
+                    countSpan.classList.add('cart-badge');
+                    setTimeout(() => countSpan.classList.remove('cart-badge'), 300);
+                }
+            }
+
+            renderFooter();
         }
 
+        // Отображение корзины
         function renderFooter() {
             const panel = document.getElementById('cart-panel');
-            const total = fullCart.reduce((sum, item) => sum + item.price, 0);
-            panel.style.transform = fullCart.length > 0 ? "translateY(0)" : "translateY(110%)";
-            document.getElementById('total-price-display').innerText = `${total} ₸`;
+            const itemsList = document.getElementById('cart-items-list');
+            let totalSum = 0;
+            let totalCount = 0;
+
+            if (itemsList) {
+                itemsList.innerHTML = '';
+            }
+
+            Object.entries(cart).forEach(([id, item]) => {
+                totalSum += item.price * item.count;
+                totalCount += item.count;
+                
+                if (itemsList) {
+                    itemsList.innerHTML += `
+                        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+                            <div>
+                                <p class="font-bold text-slate-700">${item.name}</p>
+                                <p class="text-xs text-slate-400">${item.price} ₸ × ${item.count}</p>
+                            </div>
+                            <p class="font-bold text-blue-600">${item.price * item.count} ₸</p>
+                        </div>
+                    `;
+                }
+            });
+
+            if (totalCount > 0) {
+                panel.classList.remove('translate-y-full');
+                if (itemsList) itemsList.classList.remove('hidden');
+                document.getElementById('total-price-display').innerHTML = totalSum.toLocaleString() + ' ₸';
+                document.getElementById('items-count').innerHTML = `<i class="fas fa-box mr-1"></i> ${totalCount} товар(ов)`;
+            } else {
+                panel.classList.add('translate-y-full');
+                if (itemsList) itemsList.classList.add('hidden');
+            }
         }
 
-        function clearCart() { fullCart = []; renderMenu(); renderFooter(); }
+        // Очистка корзины
+        function clearCart() {
+            tg.HapticFeedback.impactOccurred('heavy');
+            
+            tg.showPopup({
+                title: 'Очистить корзину?',
+                message: 'Все выбранные блюда будут удалены',
+                buttons: [
+                    {id: 'cancel', type: 'cancel', text: 'Отмена'},
+                    {id: 'confirm', type: 'default', text: 'Очистить'}
+                ]
+            }, (buttonId) => {
+                if (buttonId === 'confirm') {
+                    cart = {};
+                    // Обновляем все счетчики
+                    Object.keys(cart).forEach(id => {
+                        const countSpan = document.getElementById(`count-${id}`);
+                        if (countSpan) countSpan.innerText = 0;
+                    });
+                    renderFooter();
+                    tg.showPopup({
+                        title: 'Готово',
+                        message: 'Корзина очищена',
+                        buttons: [{type: 'ok'}]
+                    });
+                }
+            });
+        }
 
+        // Оформление заказа
         function checkout() {
-            if (fullCart.length === 0) return;
-            const data = {
-                price: fullCart.reduce((s, i) => s + i.price, 0),
-                items: fullCart
+            if (currentOrdersCount >= 3) {
+                tg.showPopup({
+                    title: 'Лимит заказов',
+                    message: 'Вы уже сделали 3 заказа сегодня. Завтра снова ждем вас!',
+                    buttons: [{type: 'ok'}]
+                });
+                return;
+            }
+            
+            const totalCount = Object.values(cart).reduce((s, i) => s + i.count, 0);
+            if (totalCount === 0) {
+                tg.showPopup({
+                    title: 'Корзина пуста',
+                    message: 'Добавьте блюда в корзину для оформления заказа',
+                    buttons: [{type: 'ok'}]
+                });
+                return;
+            }
+
+            tg.HapticFeedback.notificationOccurred('success');
+            
+            let itemsString = Object.values(cart)
+                .map(i => `${i.name} (x${i.count})`)
+                .join(', ');
+            
+            let totalSum = Object.values(cart).reduce((s, i) => s + (i.price * i.count), 0);
+
+            const result = {
+                item: itemsString,
+                price: totalSum
             };
-            tg.sendData(JSON.stringify(data));
-            tg.close();
+
+            tg.sendData(JSON.stringify(result));
+            
+            // Показываем уведомление об успешной отправке
+            tg.showPopup({
+                title: 'Заказ отправлен!',
+                message: `Ваш заказ на сумму ${totalSum} ₸ принят. Ждем вас в столовой!`,
+                buttons: [{type: 'ok'}]
+            });
+            
+            // Очищаем корзину после отправки
+            setTimeout(() => {
+                cart = {};
+                renderFooter();
+                // Обновляем все счетчики
+                const allCountSpans = document.querySelectorAll('[id^="count-"]');
+                allCountSpans.forEach(span => span.innerText = '0');
+            }, 500);
         }
 
-        init();
+        // Вспомогательная функция для экранирования HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Обработка кнопки "Назад" в Telegram
+        tg.onEvent('backButtonClicked', () => {
+            tg.close();
+        });
+
+        // Приветственное сообщение
+        setTimeout(() => {
+            const user = tg.initDataUnsafe?.user;
+            if (user && !localStorage.getItem('welcomed')) {
+                tg.showPopup({
+                    title: `Привет, ${user.first_name}!`,
+                    message: 'Выбери свои любимые блюда и оформи заказ. Ждем тебя в столовой! 🍽️',
+                    buttons: [{type: 'ok'}]
+                });
+                localStorage.setItem('welcomed', 'true');
+            }
+        }, 500);
     </script>
 </body>
 </html>
-
-
