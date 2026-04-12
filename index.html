@@ -1,244 +1,1274 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GastronomIQ</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            padding: 16px;
-            padding-bottom: 100px;
-        }
-        .user-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .dish-card {
-            background: white;
-            border-radius: 20px;
-            padding: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
-        }
-        .dish-card:active { transform: scale(0.98); }
-        .price { color: #667eea; font-weight: bold; font-size: 18px; margin-top: 5px; }
-        .quantity-btn {
-            background: #f0f0f0;
-            border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .quantity-btn:active { transform: scale(0.9); }
-        .cart {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-radius: 30px 30px 0 0;
-            padding: 20px;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
-            transform: translateY(100%);
-            transition: transform 0.3s;
-        }
-        .cart.show { transform: translateY(0); }
-        .checkout-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            width: 100%;
-            padding: 16px;
-            border-radius: 16px;
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 12px;
-            cursor: pointer;
-        }
-        .total { font-size: 24px; font-weight: bold; margin: 10px 0; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#4F6EF7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>GastronomIQ</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<style>
+:root {
+  --bg: #F0F4F8;
+  --card: #FFFFFF;
+  --primary: #4F6EF7;
+  --primary-dark: #3A56D4;
+  --primary-light: #EEF1FE;
+  --success: #22C55E;
+  --success-light: #DCFCE7;
+  --danger: #EF4444;
+  --danger-light: #FEE2E2;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --text: #1E293B;
+  --muted: #64748B;
+  --border: #E2E8F0;
+  --kaspi: #9333EA;
+  --kaspi-light: #F5F3FF;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overscroll-behavior:none;
+  overflow-x:hidden;
+}
+::-webkit-scrollbar{width:0;height:0}
+button,input,select,textarea{font-family:inherit;-webkit-appearance:none;appearance:none}
+input:focus,textarea:focus,select:focus{outline:none}
+
+/* ── SAFE AREA ── */
+.safe-top{height:env(safe-area-inset-top,0)}
+.safe-bottom{height:calc(env(safe-area-inset-bottom,0) + 8px)}
+
+/* ── HEADER ── */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:var(--shadow);
+}
+.logo{font-size:17px;font-weight:800;color:var(--primary);letter-spacing:-0.5px}
+.logo span{color:var(--text)}
+.header-right{display:flex;align-items:center;gap:8px}
+.status-pill{
+  font-size:10px;font-weight:700;padding:4px 9px;
+  border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;
+}
+.status-open{background:var(--success-light);color:#16A34A}
+.status-closed{background:var(--danger-light);color:#DC2626}
+.cart-btn{
+  position:relative;background:var(--primary);color:#fff;border:none;
+  border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;gap:5px;
+  transition:transform 0.15s,background 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.cart-btn:active{transform:scale(0.92);background:var(--primary-dark)}
+.cart-badge{
+  position:absolute;top:-5px;right:-5px;
+  background:var(--danger);color:#fff;border-radius:50%;
+  width:17px;height:17px;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid #fff;
+}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:5px;padding:10px 12px;
+  overflow-x:auto;scrollbar-width:none;
+  background:var(--card);border-bottom:1px solid var(--border);
+  -webkit-overflow-scrolling:touch;
+}
+.tab{
+  flex-shrink:0;padding:6px 13px;border-radius:20px;
+  border:1.5px solid var(--border);font-size:12px;font-weight:600;
+  cursor:pointer;background:transparent;color:var(--muted);
+  transition:all 0.2s;white-space:nowrap;
+}
+.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tab:active{transform:scale(0.94)}
+
+/* ── CONTENT ── */
+.content{padding:12px 12px 160px;max-width:600px;margin:0 auto}
+.section{display:none}
+.section.active{display:block}
+
+/* ── BANNER ── */
+.banner{
+  background:linear-gradient(135deg,#4F6EF7 0%,#6B44F8 100%);
+  color:#fff;border-radius:var(--radius);padding:14px 16px;
+  margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;
+  box-shadow:0 4px 20px rgba(79,110,247,0.35);
+}
+.banner-info h3{font-size:15px;font-weight:800;margin-bottom:3px}
+.banner-info p{font-size:11px;opacity:0.85}
+.banner-time .time{font-size:26px;font-weight:900;line-height:1}
+.banner-time .label{font-size:9px;opacity:0.75;text-transform:uppercase;letter-spacing:0.8px;margin-top:2px}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:5px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.filter-btn{
+  flex-shrink:0;padding:5px 12px;border-radius:16px;
+  border:1.5px solid var(--border);font-size:12px;font-weight:600;
+  cursor:pointer;background:var(--card);color:var(--muted);
+  transition:all 0.18s;
+}
+.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ── DISH CARDS ── */
+.dish-card{
+  background:var(--card);border-radius:var(--radius);padding:12px;
+  margin-bottom:8px;display:flex;align-items:center;gap:10px;
+  box-shadow:var(--shadow);border:1.5px solid transparent;
+  transition:border-color 0.18s,transform 0.15s;
+}
+.dish-card.selected{border-color:var(--primary)}
+.dish-card:active{transform:scale(0.99)}
+.dish-emoji{font-size:34px;min-width:44px;text-align:center;line-height:1}
+.dish-info{flex:1;min-width:0}
+.dish-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dish-price{font-size:15px;font-weight:800;color:var(--primary)}
+.dish-desc{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dish-tags{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600}
+.tag-veg{background:var(--success-light);color:#16A34A}
+.tag-hot{background:var(--danger-light);color:#DC2626}
+.tag-new{background:var(--kaspi-light);color:#7C3AED}
+
+/* ── COUNTER ── */
+.counter{display:flex;align-items:center;gap:6px;background:#F1F5F9;border-radius:10px;padding:3px}
+.cnt-btn{
+  width:30px;height:30px;border:none;border-radius:8px;
+  background:#fff;font-size:16px;font-weight:700;
+  cursor:pointer;color:var(--primary);
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  transition:all 0.12s;display:flex;align-items:center;justify-content:center;
+}
+.cnt-btn:active{transform:scale(0.82);background:var(--primary);color:#fff}
+.cnt-num{min-width:20px;text-align:center;font-weight:800;font-size:14px}
+
+/* ── ORDER CARDS ── */
+.order-card{background:var(--card);border-radius:var(--radius);padding:13px;margin-bottom:8px;box-shadow:var(--shadow)}
+.order-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.order-ticket{font-size:13px;font-weight:800;color:var(--primary)}
+.order-time{font-size:11px;color:var(--muted)}
+.order-item{font-size:14px;font-weight:700;margin-bottom:5px}
+.order-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px}
+.order-price{font-size:13px;font-weight:700;color:var(--text)}
+.status-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px}
+.status-pending{background:var(--warning-light);color:#D97706}
+.status-ready{background:var(--success-light);color:#16A34A}
+.status-done{background:#F1F5F9;color:var(--muted)}
+
+/* ── AI CHAT ── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 240px);min-height:300px}
+.chat-msgs{
+  flex:1;display:flex;flex-direction:column;gap:8px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:8px;
+}
+.msg{
+  max-width:84%;border-radius:14px;padding:9px 12px;
+  font-size:14px;line-height:1.5;word-break:break-word;
+}
+.msg-ai{
+  background:var(--card);border:1px solid var(--border);
+  color:var(--text);align-self:flex-start;border-radius:4px 14px 14px 14px;
+}
+.msg-user{
+  background:var(--primary);color:#fff;
+  align-self:flex-end;border-radius:14px 14px 4px 14px;
+}
+.msg-time{font-size:10px;opacity:0.55;margin-top:3px}
+.chat-input-row{
+  display:flex;gap:7px;padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.chat-input{
+  flex:1;border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 12px;font-size:14px;background:var(--card);
+  color:var(--text);transition:border-color 0.2s;
+}
+.chat-input:focus{border-color:var(--primary)}
+.chat-send{
+  background:var(--primary);color:#fff;border:none;
+  border-radius:10px;padding:10px 14px;font-weight:700;
+  cursor:pointer;font-size:16px;min-width:44px;
+}
+.chat-send:active{transform:scale(0.9);background:var(--primary-dark)}
+.quick-btns{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.quick-btn{
+  font-size:11px;padding:5px 10px;border-radius:14px;
+  border:1.5px solid var(--border);background:var(--card);
+  color:var(--text);cursor:pointer;font-weight:600;transition:all 0.15s;
+}
+.quick-btn:active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ── GROUP ORDER (НОВЫЙ ДИЗАЙН) ── */
+.group-header-card{
+  background:linear-gradient(135deg,#22C55E,#16A34A);
+  color:#fff;border-radius:var(--radius);padding:14px 16px;
+  margin-bottom:14px;box-shadow:0 4px 16px rgba(34,197,94,0.3);
+}
+.group-header-card h3{font-size:15px;font-weight:800;margin-bottom:3px}
+.group-header-card p{font-size:11px;opacity:0.9}
+
+.student-card{
+  background:var(--card);border-radius:var(--radius);padding:12px;
+  margin-bottom:8px;box-shadow:var(--shadow);border:1.5px solid var(--border);
+  transition:border-color 0.2s;
+}
+.student-card.has-order{border-color:var(--success)}
+.student-card-top{
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;
+}
+.student-avatar{
+  width:36px;height:36px;border-radius:50%;background:var(--primary-light);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.student-name-input{
+  flex:1;border:1.5px solid var(--border);border-radius:9px;
+  padding:8px 10px;font-size:13px;font-weight:600;
+  background:#fff;color:var(--text);transition:border-color 0.2s;
+}
+.student-name-input:focus{border-color:var(--primary)}
+.student-contacts{display:flex;gap:6px;margin-bottom:8px}
+.contact-input{
+  flex:1;border:1.5px solid var(--border);border-radius:9px;
+  padding:6px 9px;font-size:11px;background:#fff;color:var(--text);
+  transition:border-color 0.2s;
+}
+.contact-input:focus{border-color:var(--primary)}
+.contact-input::placeholder{font-size:10px;color:var(--muted)}
+.dish-select{
+  width:100%;border:1.5px solid var(--border);border-radius:9px;
+  padding:8px 10px;font-size:13px;background:#fff;color:var(--text);
+  cursor:pointer;
+}
+.dish-select:focus{border-color:var(--primary)}
+.student-remove{
+  width:28px;height:28px;border:none;border-radius:7px;
+  background:var(--danger-light);color:var(--danger);
+  cursor:pointer;font-size:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.add-student-btn{
+  width:100%;padding:11px;border:2px dashed var(--border);
+  border-radius:var(--radius);background:transparent;color:var(--primary);
+  font-weight:700;cursor:pointer;font-size:13px;margin-bottom:10px;
+  transition:all 0.2s;
+}
+.add-student-btn:active{background:var(--primary-light)}
+
+.payment-summary{
+  background:var(--card);border-radius:var(--radius);padding:14px;
+  margin-bottom:10px;box-shadow:var(--shadow);display:none;
+}
+.payment-summary.visible{display:block}
+.payment-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid var(--border);
+}
+.payment-row:last-child{border:none}
+.payment-name{font-size:13px;font-weight:600;flex:1}
+.payment-dish{font-size:11px;color:var(--muted)}
+.payment-amount{font-size:13px;font-weight:800;color:var(--primary)}
+.payment-link-btn{
+  font-size:11px;padding:4px 9px;border-radius:8px;
+  background:var(--kaspi);color:#fff;border:none;cursor:pointer;
+  margin-left:6px;font-weight:600;white-space:nowrap;
+}
+.payment-link-btn:active{opacity:0.8}
+
+/* ── БЮДЖЕТ ── */
+.budget-card{
+  background:linear-gradient(135deg,#9333EA,#7C3AED);
+  color:#fff;border-radius:var(--radius);padding:16px;
+  margin-bottom:14px;box-shadow:0 4px 16px rgba(147,51,234,0.3);
+}
+.budget-balance{font-size:36px;font-weight:900;margin:8px 0 4px}
+.budget-label{font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.8px}
+.budget-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.budget-stat{background:rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px}
+.budget-stat-val{font-size:16px;font-weight:800}
+.budget-stat-lab{font-size:10px;opacity:0.8}
+
+.replenish-btn{
+  width:100%;padding:14px;background:#fff;color:var(--kaspi);
+  border:none;border-radius:12px;font-size:14px;font-weight:800;
+  cursor:pointer;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.replenish-btn:active{opacity:0.9}
+
+/* ── ПОДДЕРЖКА ── */
+.support-card{
+  background:var(--card);border-radius:var(--radius);padding:16px;
+  margin-bottom:10px;box-shadow:var(--shadow);
+}
+.support-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.support-type-btn{
+  padding:12px 10px;border:1.5px solid var(--border);border-radius:12px;
+  background:var(--card);cursor:pointer;text-align:center;
+  font-size:12px;font-weight:700;color:var(--muted);transition:all 0.2s;
+}
+.support-type-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.support-type-btn:active{transform:scale(0.95)}
+.support-type-icon{font-size:22px;display:block;margin-bottom:4px}
+.support-textarea{
+  width:100%;border:1.5px solid var(--border);border-radius:12px;
+  padding:12px;font-size:13px;resize:none;background:#F8FAFC;
+  color:var(--text);transition:border-color 0.2s;min-height:100px;
+}
+.support-textarea:focus{border-color:var(--primary)}
+.support-submit{
+  width:100%;padding:14px;background:var(--primary);color:#fff;
+  border:none;border-radius:12px;font-size:15px;font-weight:800;
+  cursor:pointer;margin-top:10px;transition:all 0.15s;
+}
+.support-submit:active{transform:scale(0.97);background:var(--primary-dark)}
+
+/* ── TICKET SUCCESS ── */
+.ticket-success{
+  text-align:center;padding:24px 16px;
+}
+.ticket-success .icon{font-size:56px;margin-bottom:12px}
+.ticket-success h3{font-size:20px;font-weight:800;margin-bottom:6px}
+.ticket-success p{font-size:13px;color:var(--muted);line-height:1.6}
+.ticket-id{
+  background:var(--primary-light);color:var(--primary);
+  border-radius:10px;padding:8px 16px;font-size:15px;font-weight:800;
+  display:inline-block;margin:12px 0;
+}
+
+/* ── CART PANEL ── */
+.cart-panel{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--card);border-radius:22px 22px 0 0;
+  padding:0;box-shadow:var(--shadow-lg);
+  transform:translateY(110%);
+  transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  z-index:200;max-width:600px;margin:0 auto;
+}
+.cart-panel.visible{transform:translateY(0)}
+.cart-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.cart-inner{padding:12px 14px 0}
+.cart-title{font-size:16px;font-weight:800;margin-bottom:10px}
+.cart-items{max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px}
+.cart-item-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.cart-item-row:last-child{border:none}
+.cart-note{
+  width:100%;border:1.5px solid var(--border);border-radius:10px;
+  padding:9px 12px;font-size:13px;margin-bottom:10px;resize:none;
+  background:#F8FAFC;color:var(--text);
+}
+.cart-note:focus{border-color:var(--primary)}
+.cart-total-row{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:12px;
+}
+.cart-total-label{font-size:13px;color:var(--muted);font-weight:600}
+.cart-total-price{font-size:24px;font-weight:900;color:var(--primary)}
+.pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.pay-btn{
+  border:none;border-radius:12px;padding:13px;font-size:13px;
+  font-weight:700;cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.pay-btn:active{transform:scale(0.95)}
+.pay-kaspi{background:var(--kaspi);color:#fff}
+.pay-cash{background:#1E293B;color:#fff}
+.pay-budget{background:var(--success);color:#fff;display:none}
+.btn-cancel{
+  width:100%;border:1.5px solid var(--border);background:transparent;
+  border-radius:12px;padding:11px;font-size:13px;font-weight:600;
+  color:var(--muted);cursor:pointer;margin-bottom:10px;
+}
+.cart-safe{height:env(safe-area-inset-bottom,0)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;top:70px;left:50%;
+  transform:translateX(-50%) translateY(-20px);
+  background:#1E293B;color:#fff;padding:9px 18px;
+  border-radius:18px;font-size:13px;font-weight:600;
+  opacity:0;transition:all 0.3s;z-index:999;white-space:nowrap;
+  max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── LOADING ── */
+.loading{text-align:center;padding:36px 16px;color:var(--muted)}
+.spinner{
+  width:28px;height:28px;border:3px solid var(--border);
+  border-top:3px solid var(--primary);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin:0 auto 10px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:48px 20px}
+.empty-state .icon{font-size:52px;margin-bottom:12px}
+.empty-state h4{font-size:16px;font-weight:700;margin-bottom:6px}
+.empty-state p{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ── SECTION HEADER ── */
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:16px;font-weight:800}
+.sec-action{font-size:12px;color:var(--primary);font-weight:700;cursor:pointer}
+
+/* ── SUBMIT BTN ── */
+.submit-btn{
+  width:100%;padding:15px;background:var(--primary);color:#fff;
+  border:none;border-radius:14px;font-size:15px;font-weight:800;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.submit-btn:active{transform:scale(0.97);background:var(--primary-dark)}
+.submit-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+
+/* ── KASPI LINK ── */
+.kaspi-link-box{
+  background:var(--kaspi-light);border:1.5px solid #DDD6FE;
+  border-radius:12px;padding:12px;margin-bottom:8px;
+}
+.kaspi-link-box a{
+  color:var(--kaspi);font-weight:700;font-size:13px;
+  text-decoration:none;display:flex;align-items:center;gap:6px;
+}
+
+/* ── RESPONSIVE ── */
+@media(min-width:600px){
+  body{max-width:600px;margin:0 auto;box-shadow:var(--shadow-lg)}
+  .cart-panel{left:auto;right:auto;width:100%}
+}
+@media(max-width:360px){
+  .banner-time .time{font-size:22px}
+  .dish-name{font-size:13px}
+  .pay-btns{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
-    <div id="userCard" class="user-card">
-        <div id="userName" style="font-size: 20px; font-weight: bold;">👤 Загрузка...</div>
-        <div id="userClass" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
-    </div>
-    
-    <div id="menu"></div>
-    
-    <div id="cart" class="cart">
-        <div class="total">💰 Итого: <span id="total">0</span> ₸</div>
-        <div id="cartItems" style="max-height: 200px; overflow-y: auto;"></div>
-        <button class="checkout-btn" onclick="checkout()">✅ Оформить заказ</button>
+
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">Gastronom<span>IQ</span></div>
+  <div class="header-right">
+    <div class="status-pill status-open" id="store-status">● Открыто</div>
+    <button class="cart-btn" onclick="toggleCart()" id="cart-toggle" style="display:none">
+      🛒 <span id="cart-total-btn">0 ₸</span>
+      <span class="cart-badge" id="cart-count-badge" style="display:none">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="showTab('menu',this)">🍽 Меню</button>
+  <button class="tab" onclick="showTab('history',this)">📜 Заказы</button>
+  <button class="tab" onclick="showTab('ai',this)">🤖 ИИ</button>
+  <button class="tab" id="tab-group" style="display:none" onclick="showTab('group',this)">👥 Класс</button>
+  <button class="tab" id="tab-budget" style="display:none" onclick="showTab('budget',this)">💰 Бюджет</button>
+  <button class="tab" onclick="showTab('support',this)">🛟 Поддержка</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ── MENU TAB ── -->
+  <div class="section active" id="sec-menu">
+    <div class="banner">
+      <div class="banner-info">
+        <h3>Меню на сегодня</h3>
+        <p id="banner-date"></p>
+      </div>
+      <div class="banner-time">
+        <div class="time" id="live-time">--:--</div>
+        <div class="label">Заказы до 10:00</div>
+      </div>
     </div>
 
-    <script>
-        // Telegram WebApp
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        
-        // Получаем данные пользователя из Telegram
-        let userId = null;
-        let userName = "Гость";
-        
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            userId = tg.initDataUnsafe.user.id;
-            userName = tg.initDataUnsafe.user.first_name || "Гость";
-            document.getElementById('userName').innerHTML = `👋 Привет, ${userName}!`;
-        } else {
-            document.getElementById('userName').innerHTML = `👋 Добро пожаловать!`;
+    <div class="filters" id="filters">
+      <button class="filter-btn active" onclick="filterMenu('all',this)">Все</button>
+      <button class="filter-btn" onclick="filterMenu('veg',this)">🥬 Вег</button>
+      <button class="filter-btn" onclick="filterMenu('hot',this)">🔥 Горячее</button>
+      <button class="filter-btn" onclick="filterMenu('new',this)">✨ Новинки</button>
+    </div>
+
+    <div id="menu-list">
+      <div class="loading"><div class="spinner"></div>Загружаем меню...</div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY TAB ── -->
+  <div class="section" id="sec-history">
+    <div class="sec-header">
+      <span class="sec-title">📜 Мои заказы</span>
+    </div>
+    <div id="history-list">
+      <div class="loading"><div class="spinner"></div>Загружаем...</div>
+    </div>
+  </div>
+
+  <!-- ── AI TAB ── -->
+  <div class="section" id="sec-ai">
+    <div class="quick-btns" id="quick-q">
+      <button class="quick-btn" onclick="sendQuick('Что на обед сегодня?')">Что сегодня?</button>
+      <button class="quick-btn" onclick="sendQuick('Когда выдача еды?')">Когда выдача?</button>
+      <button class="quick-btn" onclick="sendQuick('Как оплатить через Kaspi?')">Как оплатить?</button>
+      <button class="quick-btn" onclick="sendQuick('Как пополнить бюджет?')">Пополнить бюджет?</button>
+    </div>
+    <div class="chat-wrap">
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="msg msg-ai">
+          👋 Сәлем! Я ИИ-ассистент GastronomIQ.<br>Задайте любой вопрос о столовой!
+          <div class="msg-time">сейчас</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-in" placeholder="Напишите вопрос..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){sendMsg();event.preventDefault()}">
+        <button class="chat-send" onclick="sendMsg()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GROUP ORDER TAB ── -->
+  <div class="section" id="sec-group">
+    <div class="group-header-card">
+      <h3>👥 Групповой заказ класса</h3>
+      <p>Выберите учеников, блюда и способы оплаты</p>
+    </div>
+
+    <div id="group-rows"></div>
+
+    <button class="add-student-btn" onclick="addStudentRow()">
+      + Добавить ученика
+    </button>
+
+    <!-- Итоговая сводка с ссылками оплаты -->
+    <div class="payment-summary" id="payment-summary">
+      <div class="sec-header">
+        <span class="sec-title">💳 Ссылки оплаты</span>
+        <span class="sec-action" onclick="copyAllLinks()">Копировать все</span>
+      </div>
+      <div id="payment-rows"></div>
+      <div style="padding:8px 0;font-size:13px;color:var(--muted)">
+        Итого: <strong id="group-total" style="color:var(--primary)">0 ₸</strong>
+      </div>
+    </div>
+
+    <button class="submit-btn" onclick="submitGroupOrder()" id="group-submit-btn">
+      ✅ Оформить и получить ссылки оплаты
+    </button>
+  </div>
+
+  <!-- ── BUDGET TAB (родители) ── -->
+  <div class="section" id="sec-budget">
+    <div class="budget-card" id="budget-card">
+      <div class="budget-label">Текущий баланс</div>
+      <div class="budget-balance" id="budget-balance">0 ₸</div>
+      <div id="budget-student-info" style="font-size:12px;opacity:0.85"></div>
+      <div class="budget-stats">
+        <div class="budget-stat">
+          <div class="budget-stat-val" id="budget-added">0 ₸</div>
+          <div class="budget-stat-lab">📥 Пополнено</div>
+        </div>
+        <div class="budget-stat">
+          <div class="budget-stat-val" id="budget-spent">0 ₸</div>
+          <div class="budget-stat-lab">📤 Потрачено</div>
+        </div>
+      </div>
+      <button class="replenish-btn" onclick="showReplenish()">
+        💜 Пополнить через Kaspi
+      </button>
+    </div>
+
+    <div class="sec-header">
+      <span class="sec-title">📊 История</span>
+    </div>
+    <div id="budget-history-list">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ── SUPPORT TAB ── -->
+  <div class="section" id="sec-support">
+    <div id="support-form-view">
+      <div class="support-card">
+        <div style="font-size:15px;font-weight:800;margin-bottom:4px">🛟 Техническая поддержка</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Ответим в течение рабочего дня</div>
+
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Тип обращения</div>
+        <div class="support-type-grid">
+          <button class="support-type-btn active" onclick="selectSupportType('bug',this)">
+            <span class="support-type-icon">🐛</span>Баг / Ошибка
+          </button>
+          <button class="support-type-btn" onclick="selectSupportType('payment',this)">
+            <span class="support-type-icon">💳</span>Проблема с оплатой
+          </button>
+          <button class="support-type-btn" onclick="selectSupportType('order',this)">
+            <span class="support-type-icon">🍽</span>Проблема с заказом
+          </button>
+          <button class="support-type-btn" onclick="selectSupportType('other',this)">
+            <span class="support-type-icon">💬</span>Другой вопрос
+          </button>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Описание</div>
+        <textarea class="support-textarea" id="support-text" placeholder="Опишите проблему подробно..."></textarea>
+
+        <button class="support-submit" onclick="submitSupport()">
+          📤 Отправить обращение
+        </button>
+      </div>
+    </div>
+
+    <div id="support-success-view" style="display:none">
+      <div class="ticket-success">
+        <div class="icon">✅</div>
+        <h3>Обращение отправлено!</h3>
+        <div class="ticket-id" id="support-ticket-id">TKT-XXXXX</div>
+        <p>Сохраните номер тикета.<br>Мы ответим в течение рабочего дня.</p>
+        <button class="submit-btn" style="margin-top:20px;max-width:260px" onclick="resetSupport()">
+          Новое обращение
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- CART PANEL -->
+<div class="cart-panel" id="cart-panel">
+  <div class="cart-handle"></div>
+  <div class="cart-inner">
+    <div class="cart-title">🛒 Ваш заказ</div>
+    <div class="cart-items" id="cart-items-list"></div>
+    <textarea class="cart-note" id="cart-note" placeholder="📝 Примечание (аллергия, пожелания...)" rows="2"></textarea>
+    <div class="cart-total-row">
+      <span class="cart-total-label">Итого:</span>
+      <span class="cart-total-price" id="cart-total-display">0 ₸</span>
+    </div>
+    <div class="pay-btns">
+      <button class="pay-btn pay-kaspi" onclick="checkout('kaspi')">💜 Kaspi</button>
+      <button class="pay-btn pay-cash" onclick="checkout('cash')">💵 Наличные</button>
+    </div>
+    <button class="pay-btn pay-budget" id="pay-budget-btn" onclick="checkout('budget')">💰 Из бюджета</button>
+    <button class="btn-cancel" onclick="toggleCart()">Закрыть</button>
+  </div>
+  <div class="cart-safe"></div>
+</div>
+
+<script>
+// ─── CONFIG ───
+const tg = window.Telegram?.WebApp;
+if(tg){
+  tg.expand();
+  tg.enableClosingConfirmation();
+  try{ tg.setHeaderColor('#4F6EF7'); } catch(e){}
+}
+
+const params  = new URLSearchParams(location.search);
+const CHANNEL = params.get('channel') || 'tg';
+const UID     = params.get('uid') || '';
+const PHONE   = params.get('phone') || '';
+const MODE    = params.get('mode') || '';
+const FB_URL  = "https://ВАШ_ПРОЕКТ-default-rtdb.firebaseio.com";
+const API_URL = "https://ВАШ_СЕРВЕР_URL";  // Ваш Flask сервер
+const KASPI_PHONE = "+77XXXXXXXXX";         // Ваш номер
+
+firebase.initializeApp({ databaseURL: FB_URL });
+const db = firebase.database();
+
+let cart = {};
+let allMenu = {};
+let userRole = 'student';
+let userClass = '';
+let supportType = 'bug';
+
+// ─── INIT USER ───
+async function initUser(){
+  const key = UID || `wa_${PHONE}`;
+  if(!key) return;
+  
+  db.ref(`users/${key}`).once('value', s => {
+    const u = s.val();
+    if(!u) return;
+    userRole  = u.role || 'student';
+    userClass = u.class || '';
+    
+    // Показываем вкладки
+    if(['teacher','teacher_admin','monitor'].includes(userRole)){
+      document.getElementById('tab-group').style.display = 'block';
+    }
+    if(userRole === 'parent'){
+      document.getElementById('tab-budget').style.display = 'block';
+      loadBudget();
+    }
+    // Для 5-6 классов показываем оплату из бюджета
+    if(['5ә','6ә'].includes(userClass) || userRole === 'parent'){
+      document.getElementById('pay-budget-btn').style.display = 'flex';
+    }
+    
+    // Если открыт режим группового заказа
+    if(MODE === 'group'){
+      showTab('group', document.getElementById('tab-group'));
+    }
+  });
+}
+initUser();
+
+// ─── ВРЕМЯ ───
+function updateTime(){
+  const now = new Date();
+  document.getElementById('live-time').textContent =
+    now.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+document.getElementById('banner-date').textContent =
+  new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+
+// ─── СТАТУС ───
+db.ref('settings/isClosed').on('value', s => {
+  const closed = !!s.val();
+  const pill = document.getElementById('store-status');
+  pill.textContent = closed ? '● Закрыто' : '● Открыто';
+  pill.className = 'status-pill ' + (closed ? 'status-closed' : 'status-open');
+});
+
+// ─── TABS ───
+function showTab(name, btn){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name === 'history') loadHistory();
+  if(name === 'group') buildGroupRows();
+  if(name === 'budget') loadBudget();
+}
+
+// ─── MENU ───
+let menuFilter = 'all';
+
+db.ref('menu_today').on('value', snap => {
+  allMenu = snap.val() || {};
+  renderMenu();
+});
+
+function filterMenu(f, btn){
+  menuFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMenu();
+}
+
+function renderMenu(){
+  const list = document.getElementById('menu-list');
+  const ids  = Object.keys(allMenu);
+  if(!ids.length){
+    list.innerHTML = '<div class="empty-state"><div class="icon">😔</div><h4>Меню пока пусто</h4><p>Повар скоро добавит блюда!</p></div>';
+    return;
+  }
+  list.innerHTML = '';
+  let shown = 0;
+  ids.forEach(id => {
+    const item = allMenu[id];
+    if(menuFilter === 'veg' && !item.tags?.includes('veg')) return;
+    if(menuFilter === 'hot' && !item.tags?.includes('hot')) return;
+    if(menuFilter === 'new' && !item.tags?.includes('new')) return;
+    shown++;
+    const count = cart[id]?.count || 0;
+    const tags = (item.tags || []).map(t =>
+      t==='veg' ? '<span class="tag tag-veg">🥬 Вег</span>' :
+      t==='hot' ? '<span class="tag tag-hot">🔥 Горяч.</span>' :
+      t==='new' ? '<span class="tag tag-new">✨ Новинка</span>' : ''
+    ).join('');
+    list.innerHTML += `
+    <div class="dish-card ${count>0?'selected':''}" id="card-${id}">
+      <div class="dish-emoji">${item.emoji || '🍽'}</div>
+      <div class="dish-info">
+        <div class="dish-name">${item.name}</div>
+        <div class="dish-price">${item.price} ₸</div>
+        ${item.desc ? `<div class="dish-desc">${item.desc}</div>` : ''}
+        <div class="dish-tags">${tags}</div>
+      </div>
+      <div class="counter">
+        <button class="cnt-btn" onclick="updateCart('${id}','${item.name}',${item.price},-1)">−</button>
+        <span class="cnt-num" id="count-${id}">${count}</span>
+        <button class="cnt-btn" onclick="updateCart('${id}','${item.name}',${item.price},1)">+</button>
+      </div>
+    </div>`;
+  });
+  if(shown === 0){
+    list.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h4>Ничего не найдено</h4><p>Попробуйте другой фильтр</p></div>';
+  }
+}
+
+function updateCart(id, name, price, delta){
+  tg?.HapticFeedback?.impactOccurred('light');
+  if(!cart[id]) cart[id] = {name, price, count:0};
+  cart[id].count = Math.max(0, cart[id].count + delta);
+  if(cart[id].count === 0) delete cart[id];
+  const el = document.getElementById('count-'+id);
+  if(el) el.textContent = cart[id]?.count || 0;
+  const card = document.getElementById('card-'+id);
+  if(card) card.classList.toggle('selected', !!(cart[id]?.count));
+  renderCartFooter();
+}
+
+function renderCartFooter(){
+  let total = 0, count = 0;
+  Object.values(cart).forEach(i => { total += i.price*i.count; count += i.count; });
+  const btn   = document.getElementById('cart-toggle');
+  const badge = document.getElementById('cart-count-badge');
+  btn.style.display   = count>0 ? 'flex' : 'none';
+  badge.style.display = count>0 ? 'flex' : 'none';
+  badge.textContent   = count;
+  document.getElementById('cart-total-btn').textContent = total+' ₸';
+  renderCartPanel(total);
+}
+
+function renderCartPanel(total){
+  const list = document.getElementById('cart-items-list');
+  list.innerHTML = '';
+  Object.values(cart).forEach(i => {
+    list.innerHTML += `<div class="cart-item-row">
+      <span>${i.name}${i.count>1?' ×'+i.count:''}</span>
+      <span style="font-weight:700">${i.price*i.count} ₸</span>
+    </div>`;
+  });
+  document.getElementById('cart-total-display').textContent = (total||0)+' ₸';
+}
+
+function toggleCart(){
+  const panel = document.getElementById('cart-panel');
+  if(!Object.keys(cart).length){ showToast('Корзина пуста'); return; }
+  panel.classList.toggle('visible');
+}
+
+// ─── ОФОРМЛЕНИЕ ЗАКАЗА ───
+function generateKaspiLink(amount, comment){
+  const clean = KASPI_PHONE.replace('+','').replace(/-/g,'');
+  return `https://pay.kaspi.kz/pay/${clean}?amount=${amount}&comment=${encodeURIComponent(comment)}`;
+}
+
+function checkout(method){
+  const items = Object.values(cart);
+  if(!items.length){ showToast('Добавьте блюда!'); return; }
+
+  const itemStr = items.map(i => `${i.name}${i.count>1?' ×'+i.count:''}`).join(', ');
+  const total   = items.reduce((s,i) => s+i.price*i.count, 0);
+  const note    = document.getElementById('cart-note').value;
+
+  const payload = JSON.stringify({ item: itemStr, price: total, method, note, channel: CHANNEL });
+
+  if(CHANNEL === 'tg' && tg){
+    tg.sendData(payload);
+  } else {
+    // WhatsApp / Web
+    fetch(`${API_URL}/api/wa_order`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ phone: PHONE, item: itemStr, price: total, method, note, channel: CHANNEL })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if(d.ok){
+        showToast('✅ Заказ #'+d.ticket+' принят!');
+        if(d.kaspi_link && method === 'kaspi'){
+          window.open(d.kaspi_link, '_blank');
         }
-        
-        // Firebase
-        const firebaseConfig = { databaseURL: "https://ashana-29903-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        
-        let cart = {};
-        
-        // Получаем класс пользователя
-        if (userId) {
-            db.ref(`users/${userId}`).once('value', (snap) => {
-                const data = snap.val();
-                if (data && data.user_class) {
-                    document.getElementById('userClass').innerHTML = `📚 ${data.user_class} класс`;
-                } else {
-                    document.getElementById('userClass').innerHTML = `🎒 Выберите класс в боте`;
-                }
-            });
-        }
-        
-        // Загрузка меню
-        db.ref('menu_today').on('value', (snap) => {
-            const menu = snap.val();
-            const container = document.getElementById('menu');
-            container.innerHTML = '';
-            
-            if (!menu || Object.keys(menu).length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🍽️ Меню пока пусто</div>';
-                return;
-            }
-            
-            Object.entries(menu).forEach(([id, item]) => {
-                const count = cart[id] ? cart[id].count : 0;
-                
-                const card = document.createElement('div');
-                card.className = 'dish-card';
-                card.innerHTML = `
-                    <div>
-                        <div style="font-size: 18px; font-weight: 600;">${item.name}</div>
-                        <div class="price">${item.price} ₸</div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, -1)">−</button>
-                        <span id="count-${id}" style="min-width: 30px; text-align: center; font-weight: bold; font-size: 16px;">${count}</span>
-                        <button class="quantity-btn" onclick="updateCart('${id}', '${item.name}', ${item.price}, 1)">+</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        });
-        
-        function updateCart(id, name, price, delta) {
-            if (!cart[id]) cart[id] = { name, price, count: 0 };
-            cart[id].count += delta;
-            
-            if (cart[id].count <= 0) {
-                delete cart[id];
-                const span = document.getElementById(`count-${id}`);
-                if (span) span.innerText = '0';
-            } else {
-                const span = document.getElementById(`count-${id}`);
-                if (span) span.innerText = cart[id].count;
-            }
-            
-            updateCartUI();
-        }
-        
-        function updateCartUI() {
-            const cartDiv = document.getElementById('cart');
-            let total = 0;
-            let totalCount = 0;
-            
-            const itemsHtml = [];
-            Object.entries(cart).forEach(([id, item]) => {
-                const itemTotal = item.price * item.count;
-                total += itemTotal;
-                totalCount += item.count;
-                itemsHtml.push(`
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <div>
-                            <span style="font-weight: 500;">${item.name}</span>
-                            <span style="color: #666; font-size: 12px;"> x${item.count}</span>
-                        </div>
-                        <span style="font-weight: bold; color: #667eea;">${itemTotal} ₸</span>
-                    </div>
-                `);
-            });
-            
-            if (totalCount > 0) {
-                cartDiv.classList.add('show');
-                document.getElementById('total').innerText = total;
-                document.getElementById('cartItems').innerHTML = itemsHtml.join('');
-            } else {
-                cartDiv.classList.remove('show');
-            }
-        }
-        
-        function checkout() {
-            const items = Object.values(cart);
-            if (items.length === 0) {
-                tg.showPopup({
-                    title: 'Корзина пуста',
-                    message: 'Добавьте блюда для оформления заказа',
-                    buttons: [{type: 'ok'}]
-                });
-                return;
-            }
-            
-            const itemsString = items.map(i => `${i.name} (x${i.count})`).join(', ');
-            const total = items.reduce((s, i) => s + (i.price * i.count), 0);
-            
-            // Отправляем заказ в бота
-            tg.sendData(JSON.stringify({
-                item: itemsString,
-                price: total,
-                user_id: userId,
-                user_name: userName
-            }));
-            
-            tg.showPopup({
-                title: '✅ Заказ отправлен!',
-                message: `${userName}, ваш заказ на ${total} ₸ принят!\nЖдем вас в столовой!`,
-                buttons: [{type: 'ok'}]
-            });
-            
-            // Очищаем корзину
-            cart = {};
-            updateCartUI();
-            document.querySelectorAll('[id^="count-"]').forEach(span => span.innerText = '0');
-        }
-        
-        console.log('WebApp загружен, пользователь:', {userId, userName});
-    </script>
+        cart = {};
+        renderCartFooter();
+        document.getElementById('cart-panel').classList.remove('visible');
+      } else {
+        showToast('❌ '+d.msg);
+      }
+    })
+    .catch(() => showToast('❌ Ошибка сети'));
+  }
+}
+
+// ─── ИСТОРИЯ ───
+function loadHistory(){
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const path = CHANNEL === 'whatsapp' ? `wa_orders/${PHONE}` : `user_orders/${UID}`;
+  if(!UID && !PHONE){
+    list.innerHTML = '<div class="empty-state"><div class="icon">🔒</div><h4>История недоступна</h4></div>';
+    return;
+  }
+  db.ref(path).once('value', s => {
+    const data = s.val();
+    list.innerHTML = '';
+    if(!data){
+      list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h4>Заказов пока нет</h4><p>Сделайте первый заказ!</p></div>';
+      return;
+    }
+    const orders = Object.values(data).reverse().slice(0,20);
+    orders.forEach(o => {
+      const sMap   = {pending:'⏳ Ожидает',ready:'✅ Готово',done:'🟢 Выдан'};
+      const sCls   = {pending:'status-pending',ready:'status-ready',done:'status-done'};
+      list.innerHTML += `<div class="order-card">
+        <div class="order-header">
+          <span class="order-ticket">🎫 Талон #${o.ticket}</span>
+          <span class="order-time">${o.date||''} ${o.time||''}</span>
+        </div>
+        <div class="order-item">${o.item}</div>
+        <div class="order-footer">
+          <span class="order-price">${o.price} ₸ | ${o.method}</span>
+          <span class="status-badge ${sCls[o.status]||'status-pending'}">${sMap[o.status]||'⏳ Ожидает'}</span>
+        </div>
+      </div>`;
+    });
+  });
+}
+
+// ─── AI ───
+async function sendMsg(){
+  const inp  = document.getElementById('chat-in');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  appendMsg(text, 'user');
+  const loadId = appendMsg('⌛', 'ai');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: `Ты ИИ-ассистент школьной столовой GastronomIQ. 
+Отвечай кратко (2-4 предложения), дружелюбно, на том же языке.
+Заказы принимаются до 10:00, выдача обеда с 12:00 до 13:30.
+Оплата: Kaspi (ссылка генерируется) или наличными кассиру.
+Для родителей 5-6 классов: пополнение бюджета и списание учителем.
+Для сложных вопросов предлагай обратиться в поддержку (вкладка 🛟).`,
+        messages: [{role:'user', content: text}]
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || '🤖 Не смог ответить.';
+    document.getElementById(loadId)?.remove();
+    appendMsg(reply, 'ai');
+  } catch(e){
+    document.getElementById(loadId)?.remove();
+    appendMsg('❌ Ошибка. Попробуйте снова.', 'ai');
+  }
+}
+
+function sendQuick(text){
+  document.getElementById('chat-in').value = text;
+  sendMsg();
+}
+
+function appendMsg(text, role){
+  const id  = 'msg-'+Date.now()+Math.random().toString(36).slice(2,7);
+  const box = document.getElementById('chat-msgs');
+  const now = new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  box.innerHTML += `<div class="msg msg-${role}" id="${id}">${text.replace(/\n/g,'<br>')}<div class="msg-time">${now}</div></div>`;
+  box.scrollTop = box.scrollHeight;
+  return id;
+}
+
+// ─── ГРУППОВОЙ ЗАКАЗ ───
+let groupStudents = [];
+
+function buildGroupRows(){
+  if(groupStudents.length > 0) return;
+  for(let i=0;i<3;i++) addStudentRow();
+}
+
+function addStudentRow(){
+  const idx = groupStudents.length;
+  groupStudents.push({name:'',dish:'',price:0,tgId:'',waPhone:''});
+  
+  const box = document.getElementById('group-rows');
+  const options = Object.values(allMenu).map(m =>
+    `<option value="${m.name}|${m.price}">${m.name} — ${m.price} ₸</option>`
+  ).join('');
+
+  const div = document.createElement('div');
+  div.className = 'student-card';
+  div.id = `student-${idx}`;
+  div.innerHTML = `
+    <div class="student-card-top">
+      <div class="student-avatar">👤</div>
+      <input class="student-name-input" placeholder="Имя ученика" 
+             oninput="updateStudent(${idx},'name',this.value)">
+      <button class="student-remove" onclick="removeStudent(${idx})">✕</button>
+    </div>
+    <div class="student-contacts">
+      <input class="contact-input" placeholder="🔵 Telegram ID (необяз.)"
+             oninput="updateStudent(${idx},'tgId',this.value)">
+      <input class="contact-input" placeholder="📱 WhatsApp +7..."
+             oninput="updateStudent(${idx},'waPhone',this.value)">
+    </div>
+    <select class="dish-select" onchange="updateStudent(${idx},'dishVal',this.value)">
+      <option value="">— не заказывает —</option>
+      ${options}
+    </select>`;
+  box.appendChild(div);
+}
+
+function updateStudent(idx, field, value){
+  if(!groupStudents[idx]) return;
+  if(field === 'dishVal'){
+    if(!value){ groupStudents[idx].dish=''; groupStudents[idx].price=0; }
+    else{
+      const [d,p] = value.split('|');
+      groupStudents[idx].dish = d;
+      groupStudents[idx].price = parseInt(p);
+    }
+  } else {
+    groupStudents[idx][field] = value;
+  }
+  const card = document.getElementById(`student-${idx}`);
+  if(card) card.classList.toggle('has-order', !!(groupStudents[idx].dish));
+}
+
+function removeStudent(idx){
+  groupStudents[idx] = null;
+  const el = document.getElementById(`student-${idx}`);
+  if(el) el.remove();
+}
+
+function submitGroupOrder(){
+  const valid = groupStudents.filter(s => s && s.name && s.dish);
+  if(!valid.length){ showToast('Добавьте хотя бы одного ученика с блюдом!'); return; }
+
+  const btn = document.getElementById('group-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Оформляем...';
+
+  if(CHANNEL === 'tg' && tg){
+    const payload = {
+      isGroup: true,
+      groupOrders: valid.map(s => ({
+        student_name: s.name,
+        dish: s.dish,
+        price: s.price,
+        tg_contact: s.tgId || null,
+        wa_contact: s.waPhone || null,
+      }))
+    };
+    tg.sendData(JSON.stringify(payload));
+    // После отправки показываем ссылки локально
+    showGroupPaymentLinks(valid);
+  } else {
+    // WhatsApp / Web
+    fetch(`${API_URL}/api/group_order`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        teacher_phone: PHONE,
+        class: userClass,
+        orders: valid.map(s => ({
+          student_name: s.name, dish: s.dish, price: s.price,
+          tg_contact: s.tgId || null, wa_contact: s.waPhone || null,
+        }))
+      })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if(d.ok){ showGroupPaymentLinks(d.orders); }
+      else { showToast('❌ '+d.msg); btn.disabled=false; btn.textContent='✅ Оформить'; }
+    })
+    .catch(() => { showToast('❌ Ошибка сети'); btn.disabled=false; btn.textContent='✅ Оформить'; });
+  }
+}
+
+function showGroupPaymentLinks(orders){
+  const summary = document.getElementById('payment-summary');
+  const rows    = document.getElementById('payment-rows');
+  const totalEl = document.getElementById('group-total');
+  const btn     = document.getElementById('group-submit-btn');
+  
+  let total = 0;
+  rows.innerHTML = '';
+  
+  orders.forEach((o, i) => {
+    const ticket  = o.ticket || (1000 + i);
+    const price   = o.price || 0;
+    const comment = encodeURIComponent(`GIQ#${ticket} ${o.student_name || o.name} ${o.dish}`);
+    const clean   = KASPI_PHONE.replace('+','').replace(/-/g,'');
+    const link    = `https://pay.kaspi.kz/pay/${clean}?amount=${price}&comment=${comment}`;
+    total += price;
+    
+    rows.innerHTML += `<div class="payment-row">
+      <div>
+        <div class="payment-name">${o.student_name || o.name}</div>
+        <div class="payment-dish">${o.dish} · 🎫#${ticket}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span class="payment-amount">${price} ₸</span>
+        <a href="${link}" target="_blank" class="payment-link-btn">💜 Kaspi</a>
+      </div>
+    </div>`;
+  });
+  
+  totalEl.textContent = total + ' ₸';
+  summary.classList.add('visible');
+  summary.scrollIntoView({behavior:'smooth', block:'start'});
+  
+  btn.textContent = '✅ Заказ оформлен!';
+  btn.disabled = false;
+  
+  showToast('✅ Групповой заказ оформлен!');
+}
+
+function copyAllLinks(){
+  const valid = groupStudents.filter(s => s && s.name && s.dish);
+  if(!valid.length){ showToast('Нет данных'); return; }
+  
+  let text = '🍽 GastronomIQ — Ссылки оплаты:\n\n';
+  valid.forEach((o, i) => {
+    const ticket  = 1000 + i;
+    const comment = encodeURIComponent(`GIQ#${ticket} ${o.name} ${o.dish}`);
+    const clean   = KASPI_PHONE.replace('+','').replace(/-/g,'');
+    const link    = `https://pay.kaspi.kz/pay/${clean}?amount=${o.price}&comment=${comment}`;
+    text += `👤 ${o.name} — ${o.dish} (${o.price} ₸)\n💜 ${link}\n\n`;
+  });
+  
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Скопировано!'));
+  } else {
+    showToast('❌ Скопируйте вручную');
+  }
+}
+
+// ─── БЮДЖЕТ ───
+function loadBudget(){
+  const key = UID ? `${UID}` : `wa_${PHONE}`;
+  db.ref(`parent_budgets/${key}`).once('value', s => {
+    const b = s.val();
+    if(!b) return;
+    document.getElementById('budget-balance').textContent = (b.balance || 0) + ' ₸';
+    document.getElementById('budget-added').textContent   = (b.total_added || 0) + ' ₸';
+    document.getElementById('budget-spent').textContent   = (b.total_spent || 0) + ' ₸';
+    document.getElementById('budget-student-info').textContent = `👦 ${b.student_name || ''} · ${b.class || ''}`;
+    
+    // История
+    db.ref(`budget_transactions/${key}`).once('value', ts => {
+      const data = ts.val();
+      const list = document.getElementById('budget-history-list');
+      if(!data){
+        list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h4>История пуста</h4></div>';
+        return;
+      }
+      list.innerHTML = '';
+      Object.values(data).reverse().slice(0,15).forEach(tx => {
+        const isAdd = tx.type === 'add';
+        list.innerHTML += `<div class="order-card">
+          <div class="order-header">
+            <span style="font-weight:700">${isAdd ? '📥' : '📤'} ${isAdd ? '+' : '-'}${tx.amount} ₸</span>
+            <span class="order-time">${tx.date||''}</span>
+          </div>
+          <div class="order-item" style="font-size:13px;color:var(--muted)">${tx.description||''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Баланс после: ${tx.balance_after||0} ₸</div>
+        </div>`;
+      });
+    });
+  });
+}
+
+function showReplenish(){
+  const key = UID ? UID : `wa_${PHONE}`;
+  db.ref(`parent_budgets/${key}`).once('value', s => {
+    const b = s.val() || {};
+    const amounts = [1000, 2000, 5000];
+    amounts.forEach(amount => {
+      const comment = encodeURIComponent(`GIQ Бюджет ${b.class||''} ${b.student_name||''}`);
+      const clean   = KASPI_PHONE.replace('+','').replace(/-/g,'');
+      const link    = `https://pay.kaspi.kz/pay/${clean}?amount=${amount}&comment=${comment}`;
+      window.open(link, '_blank');
+    });
+    // Открываем первую ссылку (2000 ₸)
+    const comment = encodeURIComponent(`GIQ Бюджет ${b.class||''} ${b.student_name||''}`);
+    const clean   = KASPI_PHONE.replace('+','').replace(/-/g,'');
+    window.open(`https://pay.kaspi.kz/pay/${clean}?amount=2000&comment=${comment}`, '_blank');
+  });
+}
+
+// ─── ПОДДЕРЖКА ───
+function selectSupportType(type, btn){
+  supportType = type;
+  document.querySelectorAll('.support-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function submitSupport(){
+  const text = document.getElementById('support-text').value.trim();
+  if(!text || text.length < 10){
+    showToast('Опишите проблему подробнее (мин. 10 символов)');
+    return;
+  }
+  
+  const ticketId = 'TKT-' + Math.floor(10000 + Math.random()*90000);
+  const typeLabels = {bug:'🐛 Баг',payment:'💳 Оплата',order:'🍽 Заказ',other:'💬 Другое'};
+  
+  // Сохраняем в Firebase
+  const ticketData = {
+    id: ticketId,
+    uid: UID || PHONE,
+    type: supportType,
+    type_label: typeLabels[supportType],
+    message: text,
+    channel: CHANNEL,
+    status: 'open',
+    created_at: new Date().toISOString(),
+  };
+  
+  db.ref(`support_tickets/${ticketId}`).set(ticketData)
+    .then(() => {
+      document.getElementById('support-ticket-id').textContent = ticketId;
+      document.getElementById('support-form-view').style.display  = 'none';
+      document.getElementById('support-success-view').style.display = 'block';
+    })
+    .catch(() => showToast('❌ Ошибка отправки'));
+}
+
+function resetSupport(){
+  document.getElementById('support-text').value = '';
+  document.getElementById('support-form-view').style.display  = 'block';
+  document.getElementById('support-success-view').style.display = 'none';
+  supportType = 'bug';
+  document.querySelectorAll('.support-type-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+}
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(msg){
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
 </body>
 </html>
